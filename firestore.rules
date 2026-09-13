@@ -1,0 +1,22 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // One document per collection, addressed by the random id in your sync link.
+    // Anyone holding that id can read and write it — the id IS the key, so treat
+    // the sync link like a password and don't post it publicly.
+    match /dexes/{id} {
+      allow read: if id.size() >= 12 && id.size() <= 64;
+
+      allow write: if id.size() >= 12 && id.size() <= 64
+                   && request.resource.data.keys().hasOnly(['owned', 'updatedAt'])
+                   && request.resource.data.owned is map;
+    }
+
+    // Nothing else in the database is reachable from the web page.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
