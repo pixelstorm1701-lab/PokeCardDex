@@ -1,0 +1,514 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Track which Pokémon TCG Pitch Black cards you own.">
+<meta name="theme-color" content="#07080b">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='20' r='19' fill='%230b0d13'/%3E%3Cpath d='M20 1a19 19 0 0 1 19 19H1A19 19 0 0 1 20 1z' fill='%23f0334b'/%3E%3Ccircle cx='20' cy='20' r='6' fill='%230b0d13'/%3E%3Ccircle cx='20' cy='20' r='2.4' fill='%23cfd6e6'/%3E%3C/svg%3E">
+<title>Dex's Pokecard Dex</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Archivo:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<style>
+:root{
+  --void:#07080b;
+  --panel:#101219;
+  --panel-2:#161923;
+  --line:#212533;
+  --line-soft:#1a1d27;
+  --ink:#e9ebf2;
+  --muted:#7e8598;
+  --dim:#5b6274;
+  --crimson:#f0334b;
+  --jade:#35c88b;
+  --gold:#e3b341;
+  --plume:#cfd6e6;
+  --r:10px;
+  color-scheme: dark;
+}
+
+*{box-sizing:border-box}
+img{max-width:100%}
+[hidden]{display:none!important}
+
+body{
+  margin:0;
+  background:
+    radial-gradient(1100px 620px at 78% -8%, #16111c 0%, rgba(22,17,28,0) 62%),
+    radial-gradient(760px 420px at 6% 4%, #0c1019 0%, rgba(12,16,25,0) 58%),
+    var(--void);
+  background-attachment:fixed;
+  color:var(--ink);
+  font-family:"Archivo","Helvetica Neue",Arial,sans-serif;
+  font-size:15px;
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+
+.wrap{max-width:1120px;margin:0 auto;padding-inline:20px;padding-block:26px 72px}
+
+/* ---------- masthead ---------- */
+.mast{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:13px;min-width:0}
+.orb{width:38px;height:38px;flex:0 0 auto}
+h1{
+  font-family:"Chakra Petch","Chakra Petch",sans-serif;
+  font-weight:700;font-size:clamp(25px,4.4vw,36px);line-height:1;margin:0;
+  letter-spacing:-.015em;text-wrap:balance;
+}
+h1 .apo{color:var(--crimson)}
+.tagline{margin:7px 0 0;color:var(--muted);font-size:13px;letter-spacing:.02em}
+
+.saved{
+  font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--dim);display:flex;align-items:center;gap:7px;
+  padding-bottom:4px;
+}
+.saved .dot{width:6px;height:6px;border-radius:50%;background:var(--dim);transition:background .25s}
+.saved.on .dot{background:var(--jade);box-shadow:0 0 9px rgba(53,200,139,.75)}
+.saved.warn .dot{background:var(--gold)}
+
+/* ---------- tabs ---------- */
+.tabs{display:flex;gap:4px;margin-top:26px;border-bottom:1px solid var(--line);padding-inline:2px}
+.tab{
+  appearance:none;border:1px solid transparent;border-bottom:none;background:none;
+  color:var(--muted);font-family:"Chakra Petch",sans-serif;font-weight:600;font-size:14px;
+  letter-spacing:.06em;text-transform:uppercase;padding:11px 18px;cursor:pointer;
+  border-radius:8px 8px 0 0;position:relative;top:1px;
+}
+.tab:hover{color:var(--plume)}
+.tab[aria-selected="true"]{
+  color:var(--ink);background:var(--panel);border-color:var(--line);
+  box-shadow:inset 0 2px 0 var(--crimson);
+}
+.tab .n{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--dim);margin-left:9px;font-weight:500}
+.tab[aria-selected="true"] .n{color:var(--crimson)}
+
+/* ---------- set header ---------- */
+.setbar{
+  background:linear-gradient(180deg,var(--panel) 0%,var(--panel-2) 100%);
+  border:1px solid var(--line);border-top:none;border-radius:0 0 14px 14px;
+  padding:22px 22px 20px;
+  display:grid;grid-template-columns:1fr auto;gap:22px;align-items:center;
+}
+.setmeta h2{
+  font-family:"Chakra Petch",sans-serif;font-weight:700;font-size:22px;margin:0;
+  letter-spacing:.01em;
+}
+.setmeta .sub{
+  font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--muted);
+  margin-top:6px;display:flex;gap:14px;flex-wrap:wrap;
+}
+.setmeta .sub span{white-space:nowrap}
+
+.counter{text-align:right}
+.counter .big{
+  font-family:"Chakra Petch",sans-serif;font-weight:700;font-size:34px;line-height:1;
+  font-variant-numeric:tabular-nums;
+}
+.counter .big em{font-style:normal;color:var(--dim);font-size:19px}
+.counter .lab{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-top:6px}
+
+.meter{grid-column:1/-1;height:5px;border-radius:3px;background:#0b0d13;overflow:hidden;border:1px solid var(--line-soft)}
+.meter i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--crimson),#ff6a54);transition:width .35s ease}
+
+.splits{grid-column:1/-1;display:flex;gap:8px;flex-wrap:wrap}
+.split{
+  font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--muted);
+  border:1px solid var(--line);border-radius:999px;padding:4px 11px;background:#0c0e15;
+  font-variant-numeric:tabular-nums;
+}
+.split b{color:var(--plume);font-weight:600}
+
+/* ---------- toolbar ---------- */
+.tools{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:20px 0 16px}
+.search{position:relative;flex:1 1 240px;min-width:0}
+.search input{
+  width:100%;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);
+  color:var(--ink);font-family:inherit;font-size:14px;padding:9px 12px 9px 34px;
+}
+.search svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--dim)}
+.search input::placeholder{color:var(--dim)}
+select{
+  background:var(--panel);border:1px solid var(--line);border-radius:var(--r);color:var(--ink);
+  font-family:inherit;font-size:13.5px;padding:9px 11px;cursor:pointer;
+}
+.toggle{
+  display:inline-flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);
+  border-radius:var(--r);padding:9px 13px;cursor:pointer;font-size:13.5px;color:var(--muted);user-select:none;
+}
+.toggle input{accent-color:var(--crimson);margin:0;width:14px;height:14px}
+.toggle:has(input:checked){color:var(--ink);border-color:#3a2030;background:#15101a}
+input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--crimson);outline-offset:2px}
+
+/* ---------- card grid ---------- */
+.group{margin-top:26px}
+.grouphead{display:flex;align-items:baseline;gap:12px;margin-bottom:12px}
+.grouphead h3{
+  font-family:"Chakra Petch",sans-serif;font-size:13px;font-weight:600;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--plume);margin:0;
+}
+.grouphead .rule{flex:1;height:1px;background:var(--line)}
+.grouphead .cnt{font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--dim);font-variant-numeric:tabular-nums}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(258px,1fr));gap:8px}
+
+.card{
+  display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:11px;
+  width:100%;text-align:left;cursor:pointer;
+  background:var(--panel);border:1px solid var(--line-soft);border-left:3px solid var(--type,#2a2f3d);
+  border-radius:var(--r);padding:9px 11px 9px 12px;color:inherit;font:inherit;
+  transition:border-color .16s,background .16s,transform .08s;
+}
+.card:hover{background:var(--panel-2);border-color:var(--line);border-left-color:var(--type,#2a2f3d)}
+.card:active{transform:scale(.993)}
+
+.num{
+  font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--dim);
+  font-variant-numeric:tabular-nums;width:30px;flex:0 0 auto;
+}
+.body{min-width:0}
+.name{font-size:14.5px;font-weight:500;line-height:1.25;overflow-wrap:anywhere}
+.rar{
+  font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.06em;
+  color:var(--muted);margin-top:3px;display:block;
+}
+.rar.hi{color:var(--gold)}
+
+.tick{
+  width:22px;height:22px;border-radius:6px;border:1.5px solid #2c3141;flex:0 0 auto;
+  display:grid;place-items:center;background:#0b0d13;transition:all .16s;
+}
+.tick svg{width:13px;height:13px;opacity:0;transform:scale(.5);transition:all .18s;color:#04140d}
+
+.card.got{background:#0d1712;border-color:#1e4634;border-left-color:var(--jade)}
+.card.got:hover{background:#0f1c16}
+.card.got .name{color:#d8f5e8}
+.card.got .tick{background:var(--jade);border-color:var(--jade);box-shadow:0 0 12px rgba(53,200,139,.35)}
+.card.got .tick svg{opacity:1;transform:scale(1)}
+
+.empty{
+  border:1px dashed var(--line);border-radius:var(--r);padding:34px;text-align:center;
+  color:var(--muted);font-size:14px;
+}
+
+footer{
+  margin-top:44px;padding-top:18px;border-top:1px solid var(--line-soft);
+  display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;
+  font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--dim);letter-spacing:.04em;
+}
+.reset{
+  background:none;border:1px solid var(--line);border-radius:7px;color:var(--muted);
+  font-family:inherit;font-size:11px;letter-spacing:.06em;padding:5px 11px;cursor:pointer;
+}
+.reset:hover{color:var(--crimson);border-color:#3a2030}
+.acts{display:flex;gap:8px;flex-wrap:wrap}
+.act:hover{color:var(--jade);border-color:#1e4634}
+.act.ok{color:#04140d;background:var(--jade);border-color:var(--jade)}
+.linkbox{
+  flex:1 1 100%;margin-top:10px;background:var(--panel);border:1px solid var(--line);
+  border-radius:7px;color:var(--plume);font-family:inherit;font-size:11px;padding:8px 10px;
+}
+
+@media (max-width:560px){
+  .setbar{grid-template-columns:1fr}
+  .counter{text-align:left}
+  .grid{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:reduce){
+  *{transition:none!important;animation:none!important}
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <header class="mast">
+    <div class="brand">
+      <svg class="orb" viewBox="0 0 40 40" aria-hidden="true">
+        <circle cx="20" cy="20" r="18.5" fill="#0b0d13" stroke="#262b39"/>
+        <path d="M1.5 20h37" stroke="#262b39" stroke-width="1.6"/>
+        <path d="M20 1.5a18.5 18.5 0 0 1 18.5 18.5H1.5A18.5 18.5 0 0 1 20 1.5z" fill="#f0334b" opacity=".9"/>
+        <circle cx="20" cy="20" r="6" fill="#0b0d13" stroke="#262b39" stroke-width="1.6"/>
+        <circle cx="20" cy="20" r="2.4" fill="#cfd6e6"/>
+      </svg>
+      <div>
+        <h1>Dex<span class="apo">'</span>s Pokecard Dex</h1>
+        <p class="tagline">Tick off what's in the binder. Everything else is still out there.</p>
+      </div>
+    </div>
+    <div class="saved" id="saved"><span class="dot"></span><span id="savedText">loading</span></div>
+  </header>
+
+  <div class="tabs" role="tablist" aria-label="Sets">
+    <button class="tab" role="tab" aria-selected="true" id="tab-pbl">Pitch Black<span class="n" id="tabCount">0/120</span></button>
+  </div>
+
+  <section class="setbar" role="tabpanel" aria-labelledby="tab-pbl">
+    <div class="setmeta">
+      <h2>Mega Evolution — Pitch Black</h2>
+      <div class="sub">
+        <span>PBL</span><span>120 cards</span><span>84 in the numbered set</span><span>released 17 Jul 2026</span>
+      </div>
+    </div>
+    <div class="counter">
+      <div class="big"><span id="ownedN">0</span><em>/120</em></div>
+      <div class="lab">collected</div>
+    </div>
+    <div class="meter"><i id="meterFill"></i></div>
+    <div class="splits" id="splits"></div>
+  </section>
+
+  <div class="tools">
+    <label class="search">
+      <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+        <circle cx="7" cy="7" r="4.6"/><path d="M10.4 10.4 14 14"/>
+      </svg>
+      <input id="q" type="search" placeholder="Search a card — Darkrai, Wailord, Gwynn…" aria-label="Search cards">
+    </label>
+    <select id="rarity" aria-label="Filter by rarity"><option value="">All rarities</option></select>
+    <label class="toggle"><input type="checkbox" id="missingOnly"> Only what I'm missing</label>
+  </div>
+
+  <div id="list"></div>
+
+  <footer>
+    <span>Card data: Pokémon TCG — Mega Evolution, Pitch Black (me5)</span>
+    <span class="acts">
+      <button class="reset act" id="share" type="button">Copy link with my ticks</button>
+      <button class="reset" id="reset" type="button">Clear all ticks</button>
+    </span>
+    <input class="linkbox" id="linkbox" type="text" readonly hidden aria-label="Link with your ticks">
+  </footer>
+</div>
+
+<script>
+const CARDS_RAW = [[1,"Tropius","Common","Pokémon","Grass","Basic"],[2,"Grubbin","Common","Pokémon","Grass","Basic"],[3,"Fomantis","Common","Pokémon","Grass","Basic"],[4,"Lurantis ex","Double Rare","Pokémon","Grass","Stage 1 ex"],[5,"Poltchageist","Common","Pokémon","Grass","Basic"],[6,"Sinistcha","Uncommon","Pokémon","Grass","Stage 1"],[7,"Heatran","Uncommon","Pokémon","Fire","Basic"],[8,"Mega Delphox ex","Double Rare","Pokémon","Fire","Stage 2 MEGA ex"],[9,"Sizzlipede","Common","Pokémon","Fire","Basic"],[10,"Centiskorch","Common","Pokémon","Fire","Stage 1"],[11,"Charcadet","Common","Pokémon","Fire","Basic"],[12,"Armarouge","Rare","Pokémon","Fire","Stage 1"],[13,"Goldeen","Common","Pokémon","Water","Basic"],[14,"Seaking","Uncommon","Pokémon","Water","Stage 1"],[15,"Wailmer","Common","Pokémon","Water","Basic"],[16,"Wailord ex","Double Rare","Pokémon","Water","Stage 1 ex"],[17,"Relicanth","Uncommon","Pokémon","Water","Basic"],[18,"Popplio","Common","Pokémon","Water","Basic"],[19,"Brionne","Common","Pokémon","Water","Stage 1"],[20,"Primarina","Rare","Pokémon","Water","Stage 2"],[21,"Finizen","Common","Pokémon","Water","Basic"],[22,"Palafin","Uncommon","Pokémon","Water","Stage 1"],[23,"Electrike","Common","Pokémon","Lightning","Basic"],[24,"Manectric","Uncommon","Pokémon","Lightning","Stage 1"],[25,"Charjabug","Common","Pokémon","Lightning","Stage 1"],[26,"Vikavolt","Uncommon","Pokémon","Lightning","Stage 2"],[27,"Mega Zeraora ex","Double Rare","Pokémon","Lightning","Basic MEGA ex"],[28,"Miraidon","Rare","Pokémon","Lightning","Basic"],[29,"Slowpoke","Common","Pokémon","Psychic","Basic"],[30,"Slowbro","Uncommon","Pokémon","Psychic","Stage 1"],[31,"Mega Slowbro ex","Double Rare","Pokémon","Psychic","Stage 1 MEGA ex"],[32,"Jynx","Common","Pokémon","Psychic","Basic"],[33,"Shuppet","Common","Pokémon","Psychic","Basic"],[34,"Banette","Uncommon","Pokémon","Psychic","Stage 1"],[35,"Spiritomb","Rare","Pokémon","Psychic","Basic"],[36,"Litwick","Common","Pokémon","Psychic","Basic"],[37,"Lampent","Uncommon","Pokémon","Psychic","Stage 1"],[38,"Mega Chandelure ex","Double Rare","Pokémon","Psychic","Stage 2 MEGA ex"],[39,"Dhelmise","Uncommon","Pokémon","Psychic","Basic"],[40,"Marshadow","Uncommon","Pokémon","Psychic","Basic"],[41,"Annihilape","Uncommon","Pokémon","Psychic","Stage 2"],[42,"Mankey","Common","Pokémon","Fighting",""],[43,"Primeape","Common","Pokémon","Fighting","Stage 1"],[44,"Cranidos","Common","Pokémon","Fighting","Stage 1"],[45,"Rampardos ex","Double Rare","Pokémon","Fighting","Stage 2 ex"],[46,"Drilbur","Common","Pokémon","Fighting","Basic"],[47,"Koraidon","Rare","Pokémon","Fighting","Basic"],[48,"Mega Darkrai ex","Double Rare","Pokémon","Darkness","Basic MEGA ex"],[49,"Vullaby","Common","Pokémon","Darkness","Basic"],[50,"Mandibuzz","Common","Pokémon","Darkness","Stage 1"],[51,"Inkay","Common","Pokémon","Darkness","Basic"],[52,"Malamar","Uncommon","Pokémon","Darkness","Stage 1"],[53,"Nickit","Common","Pokémon","Darkness","Basic"],[54,"Thievul","Uncommon","Pokémon","Darkness","Stage 1"],[55,"Morpeko ex","Double Rare","Pokémon","Darkness","Basic ex"],[56,"Zarude","Rare","Pokémon","Darkness","Basic"],[57,"Maschiff","Common","Pokémon","Darkness","Basic"],[58,"Mabosstiff","Common","Pokémon","Darkness","Stage 1"],[59,"Chi-Yu","Rare","Pokémon","Darkness","Basic"],[60,"Skarmory","Common","Pokémon","Metal","Basic"],[61,"Shieldon","Common","Pokémon","Metal","Stage 1"],[62,"Bastiodon","Rare","Pokémon","Metal","Stage 2"],[63,"Bronzor","Common","Pokémon","Metal","Basic"],[64,"Bronzong","Uncommon","Pokémon","Metal","Stage 1"],[65,"Mega Excadrill ex","Double Rare","Pokémon","Metal","Stage 1 MEGA ex"],[66,"Pikipek","Common","Pokémon","Colorless","Basic"],[67,"Trumbeak","Common","Pokémon","Colorless","Stage 1"],[68,"Toucannon","Uncommon","Pokémon","Colorless","Stage 2"],[69,"Type: Null","Common","Pokémon","Colorless","Basic"],[70,"Silvally","Rare","Pokémon","Colorless","Stage 1"],[71,"Bombirdier","Common","Pokémon","Colorless","Basic"],[72,"Antique Armor Fossil","Common","Trainer","Item","Item"],[73,"Antique Skull Fossil","Common","Trainer","Item","Item"],[74,"Backtrack Badge","Uncommon","Trainer","Pokémon Tool","Pokémon Tool"],[75,"Dark Bell","Uncommon","Trainer","Item","Item"],[76,"Fossil Quarry","Uncommon","Trainer","Stadium","Stadium"],[77,"Gladion's Final Battle","Uncommon","Trainer","Supporter","Supporter"],[78,"Gwynn","Uncommon","Trainer","Supporter","Supporter"],[79,"Jett","Uncommon","Trainer","Supporter","Supporter"],[80,"Misty's Vitality","Uncommon","Trainer","Supporter","Supporter"],[81,"Rust Syndicate Grunt","Uncommon","Trainer","Supporter","Supporter"],[82,"Tremendous Bomb","Uncommon","Trainer","Pokémon Tool","Pokémon Tool"],[83,"Shadowy Darkness Energy","Rare","Energy","Energy","Special"],[84,"Voltaic Lightning Energy","Rare","Energy","Energy","Special"],[85,"Fomantis","Illustration Rare","Pokémon","Grass","Basic"],[86,"Armarouge","Illustration Rare","Pokémon","Fire","Stage 1"],[87,"Goldeen","Illustration Rare","Pokémon","Water","Basic"],[88,"Primarina","Illustration Rare","Pokémon","Water","Stage 2"],[89,"Manectric","Illustration Rare","Pokémon","Lightning","Stage 1"],[90,"Slowbro","Illustration Rare","Pokémon","Psychic","Stage 1"],[91,"Dhelmise","Illustration Rare","Pokémon","Psychic","Basic"],[92,"Thievul","Illustration Rare","Pokémon","Darkness","Stage 1"],[93,"Bastiodon","Illustration Rare","Pokémon","Metal","Stage 2"],[94,"Toucannon","Illustration Rare","Pokémon","Colorless","Stage 2"],[95,"Silvally","Illustration Rare","Pokémon","Colorless","Stage 1"],[96,"Lurantis ex","Ultra Rare","Pokémon","Grass","Stage 1 ex"],[97,"Wailord ex","Ultra Rare","Pokémon","Water","Stage 1 ex"],[98,"Mega Zeraora ex","Ultra Rare","Pokémon","Lightning","Basic MEGA ex"],[99,"Mega Chandelure ex","Ultra Rare","Pokémon","Psychic","Stage 2 MEGA ex"],[100,"Rampardos ex","Ultra Rare","Pokémon","Fighting","Stage 2 ex"],[101,"Mega Darkrai ex","Ultra Rare","Pokémon","Darkness","Basic MEGA ex"],[102,"Morpeko ex","Ultra Rare","Pokémon","Darkness","Basic ex"],[103,"Mega Excadrill ex","Ultra Rare","Pokémon","Metal","Stage 1 MEGA ex"],[104,"Brave Bangle","Ultra Rare","Trainer","Pokémon Tool","Pokémon Tool"],[105,"Crushing Hammer","Ultra Rare","Trainer","Item","Item"],[106,"Dark Bell","Ultra Rare","Trainer","Item","Item"],[107,"Energy Switch","Ultra Rare","Trainer","Item","Item"],[108,"Gladion's Final Battle","Ultra Rare","Trainer","Supporter","Supporter"],[109,"Gwynn","Ultra Rare","Trainer","Supporter","Supporter"],[110,"Iron Defender","Ultra Rare","Trainer","Item","Item"],[111,"Misty's Vitality","Ultra Rare","Trainer","Supporter","Supporter"],[112,"Rust Syndicate Grunt","Ultra Rare","Trainer","Supporter","Supporter"],[113,"Tremendous Bomb","Ultra Rare","Trainer","Pokémon Tool","Pokémon Tool"],[114,"Mega Zeraora ex","Special Illustration Rare","Pokémon","Lightning","Basic MEGA ex"],[115,"Mega Chandelure ex","Special Illustration Rare","Pokémon","Psychic","MEGA ex"],[116,"Mega Darkrai ex","Special Illustration Rare","Pokémon","Darkness","Basic MEGA ex"],[117,"Morpeko ex","Special Illustration Rare","Pokémon","Darkness","Basic ex"],[118,"Gladion's Final Battle","Special Illustration Rare","Trainer","Supporter","Supporter"],[119,"Gwynn","Special Illustration Rare","Trainer","Supporter","Supporter"],[120,"Mega Darkrai ex","Mega Hyper Rare","Pokémon","Darkness","Basic MEGA ex"]];
+const TYPE_COLOR = {
+  Grass:"#5eb455", Fire:"#e2622c", Water:"#3a9fd8", Lightning:"#dcb92a",
+  Psychic:"#a857cc", Fighting:"#bd6031", Darkness:"#5a6486", Metal:"#8b93a8",
+  Colorless:"#9aa2b4", Dragon:"#c49a2b", Fairy:"#dd6aa4",
+  Supporter:"#d4823c", Item:"#4aa6a0", "Pokémon Tool":"#4aa6a0", Stadium:"#7a8f5a", Energy:"#9aa2b4"
+};
+const HI = new Set(["Illustration Rare","Special Illustration Rare","Ultra Rare","Mega Hyper Rare","Double Rare"]);
+
+const cards = CARDS_RAW.map(([n,name,rarity,supertype,kind,subs]) => ({n,name,rarity,supertype,kind,subs}));
+const TOTAL = cards.length;
+const MAIN_MAX = 84;
+
+let owned = {};          // {"4": true}
+let saveTimer = null;
+const LS = "dex-pokecard-pitch-black";
+
+/* ---------- rendering ---------- */
+const el = id => document.getElementById(id);
+const listEl = el("list");
+
+const raritySel = el("rarity");
+[...new Set(cards.map(c => c.rarity))]
+  .sort((a,b) => cards.filter(c=>c.rarity===b).length - cards.filter(c=>c.rarity===a).length)
+  .forEach(r => { const o = document.createElement("option"); o.value = r; o.textContent = r; raritySel.append(o); });
+
+function cardNode(c){
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "card" + (owned[c.n] ? " got" : "");
+  b.style.setProperty("--type", TYPE_COLOR[c.kind] || "#2a2f3d");
+  b.dataset.n = c.n;
+  b.setAttribute("aria-pressed", owned[c.n] ? "true" : "false");
+  b.innerHTML =
+    '<span class="num">' + String(c.n).padStart(3,"0") + '</span>' +
+    '<span class="body"><span class="name"></span>' +
+      '<span class="rar' + (HI.has(c.rarity) ? " hi" : "") + '"></span></span>' +
+    '<span class="tick"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.6" ' +
+      'stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.4 6.3 11.7 13 5"/></svg></span>';
+  b.querySelector(".name").textContent = c.name;
+  b.querySelector(".rar").textContent = c.rarity + (c.kind && c.supertype !== "Pokémon" ? " · " + c.kind : "");
+  b.addEventListener("click", () => toggle(c.n));
+  return b;
+}
+
+function render(){
+  const q = el("q").value.trim().toLowerCase();
+  const rar = raritySel.value;
+  const missing = el("missingOnly").checked;
+
+  const shown = cards.filter(c =>
+    (!q || c.name.toLowerCase().includes(q) || String(c.n) === q) &&
+    (!rar || c.rarity === rar) &&
+    (!missing || !owned[c.n]));
+
+  listEl.textContent = "";
+  if (!shown.length){
+    const e = document.createElement("div");
+    e.className = "empty";
+    e.textContent = missing ? "Nothing missing here — that's the whole filter, collected." : "No card matches that.";
+    listEl.append(e);
+  } else {
+    const groups = [
+      ["The numbered set", "001–084", shown.filter(c => c.n <= MAIN_MAX)],
+      ["Secret rares", "085–120", shown.filter(c => c.n > MAIN_MAX)]
+    ];
+    for (const [title, range, items] of groups){
+      if (!items.length) continue;
+      const sec = document.createElement("section");
+      sec.className = "group";
+      const got = items.filter(c => owned[c.n]).length;
+      const head = document.createElement("div");
+      head.className = "grouphead";
+      head.innerHTML = '<h3></h3><span class="rule"></span><span class="cnt"></span>';
+      head.querySelector("h3").textContent = title;
+      const cnt = head.querySelector(".cnt");
+      cnt.dataset.range = range;
+      cnt.textContent = got + " / " + items.length + "  ·  " + range;
+      const grid = document.createElement("div");
+      grid.className = "grid";
+      items.forEach(c => grid.append(cardNode(c)));
+      sec.append(head, grid);
+      listEl.append(sec);
+    }
+  }
+  stats();
+}
+
+function stats(){
+  listEl.querySelectorAll(".group").forEach(sec => {
+    const items = sec.querySelectorAll(".card");
+    const got = sec.querySelectorAll(".card.got").length;
+    const cnt = sec.querySelector(".cnt");
+    cnt.textContent = got + " / " + items.length + "  ·  " + cnt.dataset.range;
+  });
+
+  const n = cards.filter(c => owned[c.n]).length;
+  el("ownedN").textContent = n;
+  el("meterFill").style.width = (n / TOTAL * 100) + "%";
+  el("tabCount").textContent = n + "/" + TOTAL;
+
+  const main = cards.filter(c => c.n <= MAIN_MAX), secret = cards.filter(c => c.n > MAIN_MAX);
+  const parts = [
+    ["Numbered set", main.filter(c => owned[c.n]).length, main.length],
+    ["Secret rares", secret.filter(c => owned[c.n]).length, secret.length]
+  ];
+  for (const r of ["Illustration Rare","Special Illustration Rare","Ultra Rare","Double Rare"]){
+    const g = cards.filter(c => c.rarity === r);
+    parts.push([r, g.filter(c => owned[c.n]).length, g.length]);
+  }
+  const s = el("splits");
+  s.textContent = "";
+  for (const [label, got, tot] of parts){
+    const d = document.createElement("span");
+    d.className = "split";
+    d.innerHTML = '<b></b> <span></span>';
+    d.querySelector("b").textContent = got + "/" + tot;
+    d.querySelector("span").textContent = label;
+    s.append(d);
+  }
+}
+
+/* ---------- state ---------- */
+function toggle(n){
+  if (owned[n]) delete owned[n]; else owned[n] = true;
+  const node = listEl.querySelector('.card[data-n="' + n + '"]');
+  if (node){
+    node.classList.toggle("got", !!owned[n]);
+    node.setAttribute("aria-pressed", owned[n] ? "true" : "false");
+    if (el("missingOnly").checked && owned[n]) { render(); return; }
+  }
+  stats();
+  save();
+}
+
+function status(state, text){
+  const s = el("saved");
+  s.className = "saved" + (state ? " " + state : "");
+  el("savedText").textContent = text;
+}
+
+/* ---------- the collection code (a 120-bit mask in base 36) ---------- */
+const D36 = "0123456789abcdefghijklmnopqrstuvwxyz";
+
+function encode(){
+  let v = 0n;
+  for (const k in owned) if (owned[k]) v |= 1n << BigInt(Number(k) - 1);
+  return v ? v.toString(36) : "";
+}
+
+function decode(code){
+  let v = 0n;
+  for (const ch of String(code).toLowerCase()){
+    const d = D36.indexOf(ch);
+    if (d < 0) return null;
+    v = v * 36n + BigInt(d);
+  }
+  const out = {};
+  for (let i = 0; i < TOTAL; i++) if ((v >> BigInt(i)) & 1n) out[i + 1] = true;
+  return out;
+}
+
+function save(){
+  try { localStorage.setItem(LS, JSON.stringify(owned)); } catch(e){}
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    const code = encode();
+    try { history.replaceState(null, "", code ? "#c=" + code : location.pathname + location.search); } catch(e){}
+  }, 300);
+  const n = Object.keys(owned).length;
+  status(n ? "on" : "warn", n ? "saved in this browser" : "nothing ticked yet");
+}
+
+el("q").addEventListener("input", render);
+raritySel.addEventListener("change", render);
+el("missingOnly").addEventListener("change", render);
+el("reset").addEventListener("click", () => {
+  if (!Object.keys(owned).length) return;
+  owned = {};
+  render();
+  save();
+});
+
+el("share").addEventListener("click", async () => {
+  const code = encode();
+  const url = location.origin + location.pathname + (code ? "#c=" + code : "");
+  const btn = el("share");
+  const was = btn.textContent;
+  try {
+    await navigator.clipboard.writeText(url);
+    btn.textContent = "Link copied — open it on your other device";
+  } catch(e){
+    const box = el("linkbox");
+    box.hidden = false;
+    box.value = url;
+    box.focus();
+    box.select();
+    btn.textContent = "Copy the link below";
+  }
+  btn.classList.add("ok");
+  setTimeout(() => { btn.textContent = was; btn.classList.remove("ok"); }, 3200);
+});
+
+/* ---------- boot: a link's code wins over this browser's own ticks ---------- */
+(function boot(){
+  const m = location.hash.match(/c=([0-9a-z]+)/i);
+  const fromLink = m ? decode(m[1]) : null;
+  if (fromLink){
+    owned = fromLink;
+    try { localStorage.setItem(LS, JSON.stringify(owned)); } catch(e){}
+  } else {
+    try { owned = JSON.parse(localStorage.getItem(LS) || "{}") || {}; } catch(e){ owned = {}; }
+  }
+  render();
+  const n = Object.keys(owned).length;
+  if (fromLink){
+    status("on", "loaded from your link");
+  } else {
+    if (n) save();
+    status(n ? "on" : "warn", n ? "saved in this browser" : "nothing ticked yet");
+  }
+})();
+</script>
+
+</body>
+</html>
