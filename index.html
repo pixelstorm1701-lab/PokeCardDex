@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="Master-set tracker for Pokémon TCG sets, reverse holos included.">
+<meta name="description" content="Master-set tracker for Pokémon TCG sets, synced across your devices.">
 <meta name="theme-color" content="#07080b">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='20' r='19' fill='%230b0d13'/%3E%3Cpath d='M20 1a19 19 0 0 1 19 19H1A19 19 0 0 1 20 1z' fill='%23f0334b'/%3E%3Ccircle cx='20' cy='20' r='6' fill='%230b0d13'/%3E%3Ccircle cx='20' cy='20' r='2.4' fill='%23cfd6e6'/%3E%3C/svg%3E">
 <title>Dex's Pokecard Dex</title>
@@ -267,6 +267,21 @@ const TYPE_COLOR = {
 const HI = new Set(["Illustration Rare","Special Illustration Rare","Ultra Rare","Hyper Rare","Mega Hyper Rare","Double Rare","ACE SPEC Rare","Double Rare ★★","Triple Rare ★★★"]);
 const CHIP_RARITIES = ["Illustration Rare","Special Illustration Rare","Ultra Rare","Double Rare","ACE SPEC Rare","Hyper Rare","Mega Hyper Rare","Rare ★","Double Rare ★★","Triple Rare ★★★"];
 const LS = "dex-pokecard-dex-v3";
+const SYNC_LS = "dex-pokecard-sync-id";
+
+/* ------------------------------------------------------------------
+   CROSS-DEVICE SYNC
+   Paste the config object from your Firebase console below (Project
+   settings -> Your apps -> Web app -> SDK setup and configuration).
+   Leave projectId empty and the page just saves in this browser.
+------------------------------------------------------------------ */
+const FIREBASE = {
+  apiKey: "AIzaSyCe57ek_t4QdEw_UrakuHfZ4rWWGkJ2GcU",
+  authDomain: "pokecard-dex.firebaseapp.com",
+  projectId: "pokecard-dex",
+  appId: "1:219256527477:web:3dc0858d5c0892c58b763c"
+};
+const FB_SDK = "https://www.gstatic.com/firebasejs/12.19.0/";
 const D36 = "0123456789abcdefghijklmnopqrstuvwxyz";
 const CHECK = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.4 6.3 11.7 13 5"/></svg>';
 
@@ -559,6 +574,12 @@ function stats(){
 }
 
 /* ---------- state ---------- */
+let backend = "local";        // local | claude | firebase
+let remoteDoc = null;         // handle for whichever backend is live
+let pushTimer = null;
+let syncedOnce = false;
+let applyingRemote = false;
+
 function toggle(c, rh){
   const map = own(), key = slotKey(c.n, rh);
   if (map[key]) delete map[key]; else map[key] = true;
@@ -583,13 +604,164 @@ function status(state, text){
 }
 const grandTotal = () => SETS.reduce((a, s) => a + countOf(s), 0);
 
-function save(){
+function localSave(){
   try { localStorage.setItem(LS, JSON.stringify(owned)); } catch(e){}
-  clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => {
+}
+
+function save(){
+  if (applyingRemote) return;
+  localSave();
+
+  if (remoteDoc){
+    clearTimeout(pushTimer);
+    pushTimer = setTimeout(push, 400);
+    status("on", "saving…");
+    return;
+  }
+
+  clearTimeout(pushTimer);
+  pushTimer = setTimeout(() => {
     const code = encodeAll();
     try { history.replaceState(null, "", code ? "#c=" + code : location.pathname + location.search); } catch(e){}
   }, 300);
+  const n = grandTotal();
+  status(n ? "on" : "warn", n ? "saved in this browser" : "nothing ticked yet");
+}
+
+/* ---------- sync plumbing ---------- */
+function cleanOwned(raw){
+  const out = {};
+  SETS.forEach(s => {
+    const src = (raw && raw[s.key]) || {};
+    const m = {};
+    s.list.forEach(c => {
+      if (src[c.n]) m[c.n] = true;
+      if (c.rh && src[c.n + "r"]) m[c.n + "r"] = true;
+    });
+    out[s.key] = m;
+  });
+  return out;
+}
+
+function unionInto(a, b){        // b wins nothing; every tick from either side is kept
+  SETS.forEach(s => {
+    const t = a[s.key] = a[s.key] || {};
+    const o = (b && b[s.key]) || {};
+    for (const k in o) if (o[k]) t[k] = true;
+  });
+  return a;
+}
+
+function repaint(){
+  buildShelf();
+  if (active !== null) render();
+}
+
+function adopt(raw){
+  applyingRemote = true;
+  owned = cleanOwned(raw);
+  localSave();
+  repaint();
+  applyingRemote = false;
+}
+
+async function push(){
+  if (!remoteDoc) return;
+  try {
+    await remoteDoc.write({ owned, updatedAt: Date.now() });
+    status("on", backend === "local" ? "saved in this browser" : "synced");
+  } catch (e){
+    status("warn", "offline — saved on this device");
+  }
+}
+
+function onRemote(data){
+  const remote = data && data.owned;
+  const localHas = grandTotal() > 0;
+
+  if (!remote){                       // nothing stored yet — seed it from this device
+    syncedOnce = true;
+    if (localHas) push(); else status("on", "synced");
+    return;
+  }
+  if (!syncedOnce && localHas){       // first contact with ticks on both sides — keep them all
+    syncedOnce = true;
+    adopt(unionInto(cleanOwned(owned), remote));
+    push();
+    return;
+  }
+  syncedOnce = true;
+  adopt(remote);
+  status("on", "synced");
+}
+
+function syncId(){
+  const m = location.hash.match(/s=([A-Za-z0-9_-]{8,})/);
+  let id = m ? m[1] : null;
+  if (!id){ try { id = localStorage.getItem(SYNC_LS); } catch(e){} }
+  if (!id){
+    const a = new Uint8Array(12);
+    (self.crypto || {}).getRandomValues ? crypto.getRandomValues(a) : a.forEach((_, i) => a[i] = Math.random() * 256);
+    id = Array.from(a, x => "abcdefghijklmnopqrstuvwxyz0123456789"[x % 36]).join("");
+  }
+  try { localStorage.setItem(SYNC_LS, id); } catch(e){}
+  return id;
+}
+
+function syncUrl(){
+  let id = null;
+  try { id = localStorage.getItem(SYNC_LS); } catch(e){}
+  return location.origin + location.pathname + (id ? "#s=" + id : "");
+}
+
+async function connect(){
+  /* 1 — published on claude.ai: use the artifact's own store */
+  try {
+    const db = await (window.claude && window.claude.use ? window.claude.use("db") : null);
+    if (db){
+      backend = "claude";
+      const ref = db.doc("collections/master-v3");
+      remoteDoc = { write: body => ref.set(body) };
+      ref.onSnapshot(
+        snap => onRemote(snap.exists ? snap.data() : null),
+        () => { remoteDoc = null; status("warn", "offline — saved on this device"); }
+      );
+      status("on", "syncing…");
+      return;
+    }
+  } catch(e){ /* not on claude.ai */ }
+
+  /* 2 — self-hosted with Firebase configured: sync through Firestore */
+  if (FIREBASE.projectId){
+    try {
+      const [{ initializeApp }, fs] = await Promise.all([
+        import(FB_SDK + "firebase-app.js"),
+        import(FB_SDK + "firebase-firestore.js")
+      ]);
+      const app = initializeApp(FIREBASE);
+      const store = fs.getFirestore(app);
+      const id = syncId();
+      const ref = fs.doc(store, "dexes", id);
+
+      backend = "firebase";
+      remoteDoc = { write: body => fs.setDoc(ref, body) };
+      if (!location.hash.startsWith("#s=")){
+        try { history.replaceState(null, "", "#s=" + id); } catch(e){}
+      }
+      el("share").textContent = "Copy sync link";
+      fs.onSnapshot(ref,
+        snap => onRemote(snap.exists() ? snap.data() : null),
+        () => { status("warn", "offline — saved on this device"); }
+      );
+      status("on", "syncing…");
+      return;
+    } catch (e){
+      status("warn", "sync unavailable — saved on this device");
+      return;
+    }
+  }
+
+  /* 3 — no backend: this browser plus the share link */
   const n = grandTotal();
   status(n ? "on" : "warn", n ? "saved in this browser" : "nothing ticked yet");
 }
@@ -607,8 +779,9 @@ el("reset").addEventListener("click", () => {
 });
 
 el("share").addEventListener("click", async () => {
-  const code = encodeAll();
-  const url = location.origin + location.pathname + (code ? "#c=" + code : "");
+  const url = remoteDoc && backend === "firebase"
+    ? syncUrl()
+    : location.origin + location.pathname + (encodeAll() ? "#c=" + encodeAll() : "");
   const btn = el("share"), was = btn.textContent;
   try {
     await navigator.clipboard.writeText(url);
@@ -628,21 +801,15 @@ el("share").addEventListener("click", async () => {
   const fromLink = m ? decodeAll(m[1]) : null;
 
   if (fromLink){
-    owned = fromLink;
-    try { localStorage.setItem(LS, JSON.stringify(owned)); } catch(e){}
+    owned = cleanOwned(fromLink);
+    localSave();
   } else {
-    try { owned = JSON.parse(localStorage.getItem(LS) || "{}") || {}; } catch(e){ owned = {}; }
+    try { owned = cleanOwned(JSON.parse(localStorage.getItem(LS) || "{}")); } catch(e){ owned = cleanOwned({}); }
   }
-  SETS.forEach(s => { owned[s.key] = owned[s.key] || {}; });
 
   buildShelf();
-  const n = grandTotal();
-  if (fromLink){
-    status("on", "loaded from your link");
-  } else {
-    if (n) save();
-    status(n ? "on" : "warn", n ? "saved in this browser" : "nothing ticked yet");
-  }
+  status("warn", "loading…");
+  connect();
 })();
 </script>
 
