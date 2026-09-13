@@ -281,6 +281,13 @@ const FIREBASE = {
   projectId: "pokecard-dex",
   appId: "1:219256527477:web:3dc0858d5c0892c58b763c"
 };
+
+/* Give every device the SAME collection: put any id of your own here, at least
+   12 characters, letters and digits (for example "dex-ramon-7f3k92"). Every
+   browser that opens the site then reads and writes that one document, with no
+   link to pass around. Leave it empty and each device mints its own id instead,
+   which you then link together with the Copy sync link button. */
+const SYNC_ID = "738k1laclfcl";
 const FB_SDK = "https://www.gstatic.com/firebasejs/12.19.0/";
 const D36 = "0123456789abcdefghijklmnopqrstuvwxyz";
 const CHECK = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.4 6.3 11.7 13 5"/></svg>';
@@ -579,6 +586,16 @@ let remoteDoc = null;         // handle for whichever backend is live
 let pushTimer = null;
 let syncedOnce = false;
 let applyingRemote = false;
+let watchdog = null;
+
+/* if the first snapshot never arrives, say so instead of spinning forever */
+function armWatchdog(){
+  clearTimeout(watchdog);
+  watchdog = setTimeout(() => {
+    if (!syncedOnce) status("warn", "offline — saved on this device");
+  }, 8000);
+}
+function disarmWatchdog(){ clearTimeout(watchdog); watchdog = null; }
 
 function toggle(c, rh){
   const map = own(), key = slotKey(c.n, rh);
@@ -676,6 +693,7 @@ async function push(){
 }
 
 function onRemote(data){
+  disarmWatchdog();
   const remote = data && data.owned;
   const localHas = grandTotal() > 0;
 
@@ -696,6 +714,7 @@ function onRemote(data){
 }
 
 function syncId(){
+  if (SYNC_ID && SYNC_ID.length >= 12) return SYNC_ID;
   const m = location.hash.match(/s=([A-Za-z0-9_-]{8,})/);
   let id = m ? m[1] : null;
   if (!id){ try { id = localStorage.getItem(SYNC_LS); } catch(e){} }
@@ -709,6 +728,7 @@ function syncId(){
 }
 
 function syncUrl(){
+  if (SYNC_ID) return location.origin + location.pathname;
   let id = null;
   try { id = localStorage.getItem(SYNC_LS); } catch(e){}
   return location.origin + location.pathname + (id ? "#s=" + id : "");
@@ -727,6 +747,7 @@ async function connect(){
         () => { remoteDoc = null; status("warn", "offline — saved on this device"); }
       );
       status("on", "syncing…");
+      armWatchdog();
       return;
     }
   } catch(e){ /* not on claude.ai */ }
@@ -745,15 +766,16 @@ async function connect(){
 
       backend = "firebase";
       remoteDoc = { write: body => fs.setDoc(ref, body) };
-      if (!location.hash.startsWith("#s=")){
+      if (!SYNC_ID && !location.hash.startsWith("#s=")){
         try { history.replaceState(null, "", "#s=" + id); } catch(e){}
       }
-      el("share").textContent = "Copy sync link";
+      el("share").textContent = SYNC_ID ? "Copy link to this Dex" : "Copy sync link";
       fs.onSnapshot(ref,
         snap => onRemote(snap.exists() ? snap.data() : null),
         () => { status("warn", "offline — saved on this device"); }
       );
       status("on", "syncing…");
+      armWatchdog();
       return;
     } catch (e){
       status("warn", "sync unavailable — saved on this device");
@@ -809,6 +831,7 @@ el("share").addEventListener("click", async () => {
 
   buildShelf();
   status("warn", "loading…");
+  armWatchdog();
   connect();
 })();
 </script>
