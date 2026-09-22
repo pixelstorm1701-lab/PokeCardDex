@@ -1,3 +1,18 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#07080b">
+<meta name="description" content="Dex's Pokecard Dex - a personal checklist for Pokemon TCG sets.">
+<meta name="robots" content="noindex">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Pokecard Dex">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="format-detection" content="telephone=no">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='20' r='19' fill='%230b0d13'/%3E%3Cpath d='M20 1a19 19 0 0 1 19 19H1A19 19 0 0 1 20 1z' fill='%23f0334b'/%3E%3Cpath d='M1 20h38' stroke='%23262b39' stroke-width='2'/%3E%3Ccircle cx='20' cy='20' r='6.2' fill='%230b0d13' stroke='%23262b39' stroke-width='1.8'/%3E%3Ccircle cx='20' cy='20' r='2.5' fill='%23cfd6e6'/%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='20' r='19' fill='%230b0d13'/%3E%3Cpath d='M20 1a19 19 0 0 1 19 19H1A19 19 0 0 1 20 1z' fill='%23f0334b'/%3E%3Cpath d='M1 20h38' stroke='%23262b39' stroke-width='2'/%3E%3Ccircle cx='20' cy='20' r='6.2' fill='%230b0d13' stroke='%23262b39' stroke-width='1.8'/%3E%3Ccircle cx='20' cy='20' r='2.5' fill='%23cfd6e6'/%3E%3C/svg%3E">
 <title>Dex's Pokecard Dex</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -11,6 +26,7 @@
   color-scheme:dark;
 }
 *{box-sizing:border-box}
+button,a,.tick,.tile,.shot{-webkit-tap-highlight-color:transparent}
 body{
   margin:0;
   background:
@@ -81,7 +97,7 @@ h1 .apo{color:var(--crimson)}
     radial-gradient(520px 220px at 104% -40%, color-mix(in srgb, var(--ac) 18%, transparent) 0%, rgba(0,0,0,0) 70%),
     linear-gradient(180deg,var(--panel) 0%,var(--panel-2) 100%);
   border:1px solid var(--line);border-top:2px solid var(--ac);border-radius:16px;padding:22px;
-  display:grid;grid-template-columns:1fr auto;gap:22px;align-items:center;
+  display:grid;grid-template-columns:minmax(0,1fr) auto;gap:22px;align-items:center;
 }
 .setmeta h2{font-family:"Chakra Petch",sans-serif;font-weight:700;font-size:22px;margin:0;letter-spacing:.01em}
 .setmeta .sub{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--muted);margin-top:6px;display:flex;gap:14px;flex-wrap:wrap}
@@ -204,20 +220,87 @@ footer{margin-top:44px;padding-top:18px;border-top:1px solid var(--line-soft);di
 .act.ok{color:#04140d;background:var(--jade);border-color:var(--jade)}
 .linkbox{flex:1 1 100%;margin-top:10px;background:var(--panel);border:1px solid var(--line);border-radius:7px;color:var(--plume);font-family:inherit;font-size:11px;padding:8px 10px}
 
+/* the sticky bar above a set: back out, and always see where you are */
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.peek{display:none;font-family:"IBM Plex Mono",monospace;font-size:13px;font-variant-numeric:tabular-nums;color:var(--plume)}
+.peek b{font-weight:600;color:var(--ac)}
+.peek em{font-style:normal;color:var(--dim)}
+
 @media (max-width:620px){
-  .setbar{grid-template-columns:1fr}
-  .counter{text-align:left}
-  .grid{grid-template-columns:1fr}
+  body{font-size:14.5px}
+  .wrap{padding-inline:14px;padding-block:18px 54px}
+  .orb{width:31px;height:31px}
+  .brand{gap:10px}
+  .mast{align-items:center;gap:10px}
+  .tagline{font-size:12px;margin-top:5px}
+  .saved{padding-bottom:0;font-size:10px}
+  .shelfhead{margin:24px 0 11px}
+
+  .topbar{
+    position:sticky;top:0;z-index:20;margin:0 -14px;padding:9px 14px 8px;
+    background:color-mix(in srgb,var(--void) 88%,transparent);backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--line-soft);
+  }
+  .back{margin:0;padding:6px 12px}
+  .peek{display:block}
+
+  .shelfhead .tot{font-size:10.5px}
+
+  /* the running total already sits in the sticky bar, so the big
+     counter comes out and the set line gets the full width */
+  .setbar{grid-template-columns:1fr;gap:13px;padding:15px 16px;border-radius:13px;margin-top:14px}
+  .setbar > *{min-width:0}
+  .setmeta h2{font-size:18.5px;line-height:1.2}
+  .setmeta .sub{font-size:11px;gap:4px 12px;margin-top:6px}
+  .setmeta .sub span{white-space:normal}
+  .counter{display:none}
+
+  /* chips on one swipeable line instead of eight stacked rows */
+  .splits{
+    flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;
+    margin:0 -16px;padding:1px 16px;scroll-snap-type:x proximity;
+    -webkit-mask-image:linear-gradient(90deg,#000 0,#000 90%,transparent 100%);
+            mask-image:linear-gradient(90deg,#000 0,#000 90%,transparent 100%);
+  }
+  .splits::-webkit-scrollbar{display:none}
+  .split{flex:0 0 auto;scroll-snap-align:start;font-size:11px;padding:4px 10px}
+
+  /* two neat columns of controls */
+  .tools{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:14px 0 9px}
+  .search{grid-column:1/-1}
+  select,.toggle{width:100%;font-size:13px;padding:9px 10px}
+  .toggle{gap:7px}
+  .legend{font-size:10.5px;gap:13px}
+
+  .grid{grid-template-columns:1fr;gap:7px}
+  .card{gap:9px;padding:8px 9px 8px 11px}
+  .num{font-size:11px;width:27px}
+  .name{font-size:14px}
+  .rar{font-size:10px}
+  .shot{width:38px;height:53px}
+  .ticks{gap:7px}
+  .tick{width:32px;height:32px;border-radius:9px}
+  .tick svg{width:16px;height:16px}
+  .peek{cursor:pointer}
+  .group{margin-top:20px}
+
   .shelf{grid-template-columns:1fr 1fr;gap:8px}
   .tile{padding:11px 12px 10px}
   .tile h3{font-size:14px}
   .tile .n{font-size:10.5px}
   .tile .code{font-size:9px}
+
+  .lens{padding:14px}
+  .lens img{max-width:88vw;max-height:calc(100vh - 150px)}
+  .lens .x{top:10px;right:12px}
+  footer{margin-top:32px;gap:10px}
 }
+@media (max-width:360px){ .tools{grid-template-columns:1fr} }
 @media (max-width:330px){ .shelf{grid-template-columns:1fr} }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
-
+</head>
+<body>
 <div class="wrap">
 
   <header class="mast">
@@ -243,7 +326,10 @@ footer{margin-top:44px;padding-top:18px;border-top:1px solid var(--line-soft);di
   </div>
 
   <div id="setView" hidden>
-    <button class="back" type="button" id="back">&#8592; All sets</button>
+    <div class="topbar">
+      <button class="back" type="button" id="back">&#8592; All sets</button>
+      <span class="peek" id="peek"><b id="peekN">0</b><em id="peekT">/0</em></span>
+    </div>
 
     <section class="setbar" id="setbar">
       <div class="setmeta">
@@ -487,6 +573,7 @@ function openSet(i){
     .concat(["released " + s.released])
     .forEach(t => { const x = document.createElement("span"); x.textContent = t; sub.append(x); });
   el("ownedT").textContent = "/" + s.master;
+  el("peekT").textContent = "/" + s.master;
   el("ownedLab").textContent = s.rhCount ? "of the master set" : "collected";
   el("foot").textContent = "Card data: " + s.name;
 
@@ -674,6 +761,7 @@ function stats(){
   let got = 0;
   for (const k in map) if (map[k]) got++;
   el("ownedN").textContent = got;
+  el("peekN").textContent = got;
   el("meterFill").style.width = (got / s.master * 100) + "%";
 
   const base = s.list.filter(c => map[c.n]).length;
@@ -932,6 +1020,8 @@ try { if (localStorage.getItem(ART_LS) === "0") el("showArt").checked = false; }
 applyArt(el("showArt").checked);
 el("showArt").addEventListener("change", () => { applyArt(el("showArt").checked); render(); });
 
+el("peek").addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
+
 el("lensX").addEventListener("click", closeLens);
 el("lens").addEventListener("click", e => { if (e.target === el("lens") || e.target.tagName === "FIGURE") closeLens(); });
 document.addEventListener("keydown", e => { if (e.key === "Escape" && !el("lens").hidden) closeLens(); });
@@ -977,3 +1067,5 @@ el("share").addEventListener("click", async () => {
   connect();
 })();
 </script>
+</body>
+</html>
