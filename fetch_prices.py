@@ -3,8 +3,10 @@
 
 The card list is read straight out of index.html, so this never drifts from the
 page. Prices come from TCGdex, which relays Cardmarket's own price guide: two
-numbers per card, the plain print and the reverse holo. Sets no source carries -
-Gem Pack Vol. 5, 30th Celebration - are simply left out.
+numbers per card, the plain print and the reverse holo. Cards no source prices yet -
+Gem Pack Vol. 5, which nothing carries, and 30th Celebration, where TCGdex has
+the fields but no figures in them - are simply left out, and appear by
+themselves on the first run after the figures land.
 
 Run it from the repository root:  python fetch_prices.py
 """
@@ -31,13 +33,15 @@ def read_sets(page):
     sys.exit('no SETS array in ' + page)
 
 
-def tcgdex_id(seg, label):
-    _, _, host, path, pad = seg
+def tcgdex_id(seg, label, ix):
+    a, b, host, path, pad = seg
     if host == 't':
         sid = path.split('/')[-1]
         return f"{sid}-{label.zfill(pad) if pad and label.isdigit() else label}"
     if host == 'p' and path in GALLERY:
         return f'{GALLERY[path]}-{label}'
+    if host == 'o':                      # 30th Celebration's Classic Collection
+        return f'30th-c-{str(ix - pad).zfill(3)}'
     return None
 
 
@@ -66,7 +70,7 @@ def main():
             for ix in range(seg[0], seg[1] + 1):
                 c = s['cards'][ix - 1]
                 lbl = str(c[5]) if len(c) > 5 else str(c[0])
-                cid = tcgdex_id(seg, lbl)
+                cid = tcgdex_id(seg, lbl, ix)
                 if cid:
                     jobs.append((s['key'], ix, cid))
     print(f'{len(jobs)} cards to price', flush=True)
