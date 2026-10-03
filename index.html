@@ -113,6 +113,8 @@ h1 .apo{color:var(--crimson)}
 .split b{color:var(--plume);font-weight:600}
 .split.foil{border-color:#2b3550}
 .split.foil b{color:var(--foil)}
+.split.money{border-color:#2f3a2c;background:#0c1110}
+.split.money b{color:#8fd3a8}
 
 /* toolbar */
 .tools{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:20px 0 10px}
@@ -194,6 +196,14 @@ body.noimg .card{grid-template-columns:auto 1fr auto}
 .name{font-size:14.5px;font-weight:500;line-height:1.25;overflow-wrap:anywhere}
 .rar{font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.06em;color:var(--muted);margin-top:3px;display:block}
 .rar.hi{color:var(--gold)}
+.eur{
+  font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.04em;color:var(--dim);
+  margin-top:3px;display:flex;gap:9px;font-variant-numeric:tabular-nums;
+}
+.eur:empty{display:none}
+.eur .foil{color:#8095c7}
+.eur .foil::before{content:"\21BB\00A0"}
+.card.got .eur{color:#7f9b8d}
 .ticks{display:flex;gap:5px;flex:0 0 auto}
 .tick{
   width:24px;height:24px;border-radius:6px;border:1.5px solid #2c3141;background:#0b0d13;
@@ -448,6 +458,45 @@ const shown = lab => /^\d+$/.test(lab) ? pad(lab)
   : lab;
 const slotKey = (n, rh) => rh ? n + "r" : String(n);
 
+/* ---------- Cardmarket trend prices ----------
+   public/prices.json is Cardmarket's own price guide, relayed by TCGdex and
+   refreshed once a day by a GitHub Action. Two numbers per card: the plain
+   print and the reverse holo. Without the file the page simply shows none. */
+let PRICES = null;
+const EUR = new Intl.NumberFormat("nl-NL", { style: "currency", currency: "EUR" });
+
+function priceOf(s, c){
+  const m = PRICES && PRICES.sets[s.key];
+  return (m && m[c.ix]) || null;
+}
+
+/* what the ticked boxes in a set are worth at today's trend */
+function valueOf(s){
+  const m = PRICES && PRICES.sets[s.key];
+  if (!m) return null;
+  const mine = owned[s.key] || {};
+  let sum = 0, any = false;
+  s.list.forEach(c => {
+    const p = m[c.ix];
+    if (!p) return;
+    any = true;
+    if (mine[String(c.n)] && p[0]) sum += p[0];
+    if (c.rh && mine[c.n + "r"] && p[1]) sum += p[1];
+  });
+  return any ? sum : null;
+}
+
+function loadPrices(){
+  fetch("prices.json", { cache: "no-cache" })
+    .then(r => (r.ok ? r.json() : null))
+    .then(d => {
+      if (!d || !d.sets) return;
+      PRICES = d;
+      if (active === null) buildShelf(); else { render(); stats(); }
+    })
+    .catch(() => {});
+}
+
 /* ---------- card artwork ----------
    Each set carries a few segments [firstIndex, lastIndex, host, path, pad].
    "t" is assets.tcgdex.net (…/<id>/low.png, /high.png), "p" is
@@ -552,7 +601,9 @@ function buildShelf(){
   const shelved = SETS.filter(s => !s.hidden);
   const got = shelved.reduce((a, s) => a + countOf(s), 0);
   const tot = shelved.reduce((a, s) => a + s.master, 0);
-  el("grandTotal").textContent = got + " of " + tot + " cards collected";
+  const worth = shelved.reduce((a, s) => a + (valueOf(s) || 0), 0);
+  el("grandTotal").textContent = got + " of " + tot + " cards collected"
+    + (worth ? "  ·  " + EUR.format(worth) : "");
 }
 
 /* ---------- set view ---------- */
@@ -578,6 +629,7 @@ function openSet(i){
     .concat(s.rhCount ? [s.rhCount + " reverse holos", s.master + " in a master set"] : [])
     .concat(s.printed === s.total || !s.rhCount ? [] : [])
     .concat(["released " + s.released])
+    .concat(PRICES && PRICES.sets[s.key] ? ["prices " + PRICES.updated] : [])
     .forEach(t => { const x = document.createElement("span"); x.textContent = t; sub.append(x); });
   el("ownedT").textContent = "/" + s.master;
   el("peekT").textContent = "/" + s.master;
@@ -651,7 +703,10 @@ function lens(c){
   im.src = art(s, c, true) || art(s, c, false);
   im.alt = c.name;
   el("lensName").textContent = c.name;
-  el("lensSub").textContent = shown(c.label) + " · " + c.rarity + " · " + s.tab;
+  const pr = priceOf(s, c);
+  const money = pr ? "  ·  " + EUR.format(pr[0])
+    + (c.rh && pr[1] != null ? " ↻ " + EUR.format(pr[1]) : "") : "";
+  el("lensSub").textContent = shown(c.label) + " · " + c.rarity + " · " + s.tab + money;
   box.hidden = false;
   el("lensX").focus();
 }
@@ -670,11 +725,17 @@ function cardNode(c){
   row.innerHTML =
     '<span class="shot none"></span>' +
     '<span class="num">' + shown(c.label) + '</span>' +
-    '<span class="body"><span class="name"></span><span class="rar' + (HI.has(c.rarity) ? " hi" : "") + '"></span></span>' +
+    '<span class="body"><span class="name"></span><span class="rar' + (HI.has(c.rarity) ? " hi" : "") + '"></span><span class="eur"></span></span>' +
     '<span class="ticks"></span>';
   row.querySelector(".name").textContent = c.name;
   row.querySelector(".rar").textContent = c.rarity + (c.kind && c.supertype !== "Pokémon" ? " · " + c.kind : "");
   fillShot(row.querySelector(".shot"), c);
+  const pr = priceOf(S(), c);
+  if (pr){
+    const box = row.querySelector(".eur");
+    if (pr[0] != null){ const x = document.createElement("span"); x.textContent = EUR.format(pr[0]); box.append(x); }
+    if (c.rh && pr[1] != null){ const x = document.createElement("span"); x.className = "foil"; x.textContent = EUR.format(pr[1]); box.append(x); }
+  }
   const ticks = row.querySelector(".ticks");
   if (mode !== "rh") ticks.append(tickNode(c, false));
   if (c.rh && mode !== "normal") ticks.append(tickNode(c, true));
@@ -796,6 +857,19 @@ function stats(){
 
   const box = el("splits");
   box.textContent = "";
+
+  /* what the boxes you ticked are worth, at Cardmarket's trend price */
+  const worth = valueOf(s);
+  if (worth !== null){
+    const d = document.createElement("span");
+    d.className = "split money";
+    d.innerHTML = '<b></b> <span></span>';
+    d.querySelector("b").textContent = EUR.format(worth);
+    d.querySelector("span").textContent = "what I own";
+    d.title = "Cardmarket trend prices of " + PRICES.updated;
+    box.append(d);
+  }
+
   parts.forEach(([label, n, tot, foil]) => {
     const d = document.createElement("span");
     d.className = "split" + (foil ? " foil" : "");
@@ -1072,6 +1146,7 @@ el("share").addEventListener("click", async () => {
   }
 
   buildShelf();
+  loadPrices();
   status("warn", "loading…");
   armWatchdog();
   connect();
