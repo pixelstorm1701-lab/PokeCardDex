@@ -2,7 +2,8 @@
 """Write prices.json: Cardmarket's trend prices for every card in the dex.
 
 The card list is read straight out of index.html, so this never drifts from the
-page. Prices come from TCGdex, which relays Cardmarket's own price guide: two
+page. A set with a `tg` field sits whole inside one TCGdex set and is asked for
+by that id; the others are matched segment by segment through their pictures. Prices come from TCGdex, which relays Cardmarket's own price guide: two
 numbers per card, the plain print and the reverse holo. Cards no source prices yet -
 Gem Pack Vol. 5, which nothing carries, and 30th Celebration, where TCGdex has
 the fields but no figures in them - are simply left out, and appear by
@@ -15,7 +16,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 API = 'https://api.tcgdex.net/v2/en/cards/'
 GALLERY = {'swsh9tg': 'swsh9tg', 'swsh10tg': 'swsh10tg', 'swsh11tg': 'swsh11tg',
-           'swsh12tg': 'swsh12tg', 'swsh12pt5gg': 'swsh12.5gg'}
+           'swsh12tg': 'swsh12tg', 'swsh12pt5gg': 'swsh12.5gg', 'svp': 'svp'}
 WORKERS = 8
 
 
@@ -66,6 +67,14 @@ def main():
 
     jobs = []
     for s in sets:
+        tg = s.get('tg')
+        if tg:                      # the whole set sits in one TCGdex set
+            sid, pad = tg
+            for ix, c in enumerate(s['cards'], 1):
+                lbl = str(c[5]) if len(c) > 5 else str(c[0])
+                jobs.append((s['key'], ix,
+                             f"{sid}-{lbl.zfill(pad) if pad and lbl.isdigit() else lbl}"))
+            continue
         for seg in s.get('img', []):
             for ix in range(seg[0], seg[1] + 1):
                 c = s['cards'][ix - 1]
