@@ -235,6 +235,97 @@ body.noimg .card{grid-template-columns:auto 1fr auto}
 .tick.rh.on svg{color:#0b1430}
 .empty{border:1px dashed var(--line);border-radius:var(--r);padding:34px;text-align:center;color:var(--muted);font-size:14px}
 
+/* ---------- camera scanner ----------
+   Full-screen sheet: viewfinder on top, whatever was recognised below. */
+.scanbtn{
+  display:inline-flex;align-items:center;gap:7px;background:var(--panel);border:1px solid var(--line);
+  border-radius:8px;color:var(--plume);font-family:inherit;font-size:12.5px;padding:0 13px;height:38px;
+  cursor:pointer;white-space:nowrap;transition:border-color .16s,color .16s;
+}
+.scanbtn:hover{border-color:#3d4457;color:#fff}
+.scanbtn svg{width:15px;height:15px;flex:0 0 auto}
+
+.scan{position:fixed;inset:0;z-index:70;background:var(--void);display:flex;flex-direction:column;overflow:hidden}
+.scan[hidden]{display:none}
+.scan .head{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;flex:0 0 auto;
+  padding:12px 16px;border-bottom:1px solid var(--line-soft);
+}
+.scan .head h3{font-family:"Chakra Petch",sans-serif;font-size:13px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--plume);margin:0}
+.scan .head .x{
+  width:34px;height:34px;border-radius:9px;border:1px solid var(--line);background:var(--panel);
+  color:var(--plume);cursor:pointer;font-size:19px;line-height:1;display:grid;place-items:center;flex:0 0 auto;
+}
+.scan .body{flex:1 1 auto;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.scan .pad{padding:14px 16px 28px;max-width:560px;margin:0 auto}
+
+.scan .stage{position:relative;background:#000;aspect-ratio:4/3;max-height:42vh;overflow:hidden;flex:0 0 auto}
+.scan .stage video{width:100%;height:100%;object-fit:cover;display:block}
+.scan .stage.off video{display:none}
+.scan .frame{position:absolute;inset:0;pointer-events:none;display:grid;place-items:center}
+.scan .frame .box{
+  width:62%;aspect-ratio:7/2;border:2px solid var(--jade);border-radius:7px;
+  box-shadow:0 0 0 2000px rgba(0,0,0,.42);transition:border-color .2s;
+}
+.scan .frame .box.busy{border-color:var(--gold)}
+.scan .scanshot{position:absolute;right:9px;bottom:9px;width:118px;border-radius:5px;border:1px solid var(--line);opacity:.9}
+.scan .tip{
+  margin:0;padding:10px 16px;font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.05em;
+  color:var(--muted);text-align:center;border-bottom:1px solid var(--line-soft);min-height:37px;flex:0 0 auto;
+}
+.scan .tip b{color:var(--jade);font-weight:600}
+.scan .tip.warn{color:var(--gold)}
+
+.scan .hit{border:1px solid var(--line);border-radius:var(--r);background:var(--panel);padding:14px;display:flex;gap:14px;margin-bottom:14px}
+.scan .hit img{width:104px;border-radius:7px;flex:0 0 auto;background:var(--panel-2);align-self:flex-start}
+.scan .hit .meta{min-width:0;flex:1 1 auto}
+.scan .hit .nm{font-family:"Chakra Petch",sans-serif;font-size:17px;font-weight:600;line-height:1.15}
+.scan .hit .sub{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.06em;color:var(--muted);margin-top:5px}
+.scan .hit .have{font-size:12.5px;margin-top:9px;color:var(--gold)}
+.scan .hit .have.yes{color:var(--jade)}
+.scan .hit .btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:11px}
+.scan .add{
+  border:1.5px solid #2c3141;background:#0b0d13;color:var(--plume);border-radius:8px;
+  font-family:inherit;font-size:12.5px;padding:7px 13px;cursor:pointer;display:inline-flex;align-items:center;gap:7px;
+}
+.scan .add:hover{border-color:#3d4457}
+.scan .add svg{width:12px;height:12px;opacity:0;transition:opacity .16s}
+.scan .add.on{background:var(--jade);border-color:var(--jade);color:#04140d}
+.scan .add.on svg{opacity:1}
+.scan .add.rh.on{background:linear-gradient(135deg,#dbe7ff 0%,var(--foil) 48%,#6f8fe0 100%);border-color:var(--foil);color:#0b1430}
+.scan .add.ghost{border-style:dashed;color:var(--muted)}
+
+.scan .pick{display:grid;gap:8px;margin-bottom:14px}
+.scan .pick .lead{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.05em;color:var(--muted);margin:0 0 2px}
+.scan .pick button{
+  text-align:left;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:9px;
+  font-family:inherit;font-size:13.5px;padding:10px 12px;cursor:pointer;
+}
+.scan .pick button:hover{border-color:#3d4457}
+.scan .pick button em{font-style:normal;display:block;font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.06em;color:var(--muted);margin-top:3px}
+
+.scan .byhand{display:grid;grid-template-columns:1fr auto;gap:8px;margin-bottom:14px}
+.scan .byhand input,.scan .byhand select{
+  background:var(--panel);border:1px solid var(--line);border-radius:8px;color:var(--ink);
+  font-family:inherit;font-size:13px;padding:0 11px;height:38px;min-width:0;
+}
+.scan .byhand select{grid-column:1/-1}
+.scan .byhand button{
+  background:var(--panel);border:1px solid var(--line);border-radius:8px;color:var(--plume);
+  font-family:inherit;font-size:12.5px;padding:0 15px;height:38px;cursor:pointer;
+}
+.scan .byhand button:hover{border-color:#3d4457;color:#fff}
+.scan .scanlog{display:grid;gap:5px;font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.04em;color:var(--dim)}
+.scan .scanlog span b{color:var(--plume);font-weight:500}
+.scan .scanlog span.new b{color:var(--jade)}
+@media (max-width:620px){
+  .shelftools .scanbtn,.tools .scanbtn{grid-column:1/-1;justify-content:center}
+  .scan .stage{max-height:38vh}
+  .scan .frame .box{width:76%}
+  .scan .hit img{width:84px}
+  .scan .scanshot{width:92px}
+  .scan .pad{padding:12px 14px 28px}
+}
 footer{margin-top:44px;padding-top:18px;border-top:1px solid var(--line-soft);display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--dim);letter-spacing:.04em}
 .acts{display:flex;gap:8px;flex-wrap:wrap}
 .reset{background:none;border:1px solid var(--line);border-radius:7px;color:var(--muted);font-family:inherit;font-size:11px;letter-spacing:.06em;padding:5px 11px;cursor:pointer}
@@ -367,6 +458,7 @@ footer{margin-top:44px;padding-top:18px;border-top:1px solid var(--line-soft);di
         <option value="big">Biggest set</option>
         <option value="worth">Worth the most</option>
       </select>
+      <button class="scanbtn" id="scanOpen" type="button"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7.2V5.4A1.4 1.4 0 0 1 4.4 4h2.1l1-1.6h5l1 1.6h2.1A1.4 1.4 0 0 1 17 5.4v9.2a1.4 1.4 0 0 1-1.4 1.4H4.4A1.4 1.4 0 0 1 3 14.6V7.2z"/><circle cx="10" cy="10" r="3.1"/></svg>Scan a card</button>
     </div>
 
     <div class="shelf" id="shelf"></div>
@@ -407,6 +499,7 @@ footer{margin-top:44px;padding-top:18px;border-top:1px solid var(--line-soft);di
       </select>
       <label class="toggle"><input type="checkbox" id="missingOnly"> Only what I&#39;m missing</label>
       <label class="toggle"><input type="checkbox" id="showArt" checked> Card pictures</label>
+      <button class="scanbtn" id="scanOpen2" type="button"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7.2V5.4A1.4 1.4 0 0 1 4.4 4h2.1l1-1.6h5l1 1.6h2.1A1.4 1.4 0 0 1 17 5.4v9.2a1.4 1.4 0 0 1-1.4 1.4H4.4A1.4 1.4 0 0 1 3 14.6V7.2z"/><circle cx="10" cy="10" r="3.1"/></svg>Scan a card</button>
     </div>
 
     <div class="legend" id="legend">
@@ -433,6 +526,37 @@ footer{margin-top:44px;padding-top:18px;border-top:1px solid var(--line-soft);di
     <img id="lensImg" alt="">
     <figcaption><div class="t" id="lensName"></div><div class="s" id="lensSub"></div></figcaption>
   </figure>
+</div>
+
+<div class="scan" id="scan" hidden role="dialog" aria-modal="true" aria-label="Scan a card">
+  <div class="head">
+    <h3>Scan a card</h3>
+    <button class="x" id="scanX" type="button" aria-label="Close">&#215;</button>
+  </div>
+
+  <div class="stage" id="scanStage">
+    <video id="scanVid" playsinline muted autoplay></video>
+    <div class="frame"><span class="box" id="scanBox"></span></div>
+    <img class="scanshot" id="scanShot" alt="" hidden>
+  </div>
+  <p class="tip" id="scanTip">Hold the card&#39;s number inside the box.</p>
+
+  <div class="body">
+    <div class="pad">
+      <div id="scanHit"></div>
+
+      <div class="byhand">
+        <input id="scanNum" type="text" inputmode="text" autocomplete="off" spellcheck="false"
+               placeholder="083/185, TG12 or SWSH001" aria-label="Type a card number">
+        <button id="scanGo" type="button">Find</button>
+        <select id="scanSet" aria-label="Limit to one set">
+          <option value="">Any set &#8212; the &#8220;/185&#8221; picks it</option>
+        </select>
+      </div>
+
+      <div class="scanlog" id="scanLog"></div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -812,6 +936,389 @@ function lens(c){
 function closeLens(){
   el("lens").hidden = true;
   el("lensImg").removeAttribute("src");
+}
+
+/* ---------- scan a card with the camera ----------
+   The only thing that has to be read is the collector number in a card's
+   bottom corner: "083/185" is card 83 of the set whose printed run is 185,
+   and that run picks the set on its own almost every time. Tesseract does
+   the reading inside the browser — it is fetched once and then cached — and
+   it only ever sees the strip inside the green box, so no picture of your
+   binder leaves the phone. Typing the number does the same lookup, which is
+   also the way in for the few cards whose number carries letters. */
+const OCR_JS = "https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.1.1/tesseract.min.js";
+const OCR_AT = {
+  workerPath: "https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/worker.min.js",
+  corePath:   "https://cdn.jsdelivr.net/npm/tesseract.js-core@5.1.1",
+  langPath:   "https://cdn.jsdelivr.net/npm/@tesseract.js-data/eng@1.0.0/4.0.0_best_int"
+};
+let ocr = null, ocrBoot = null;
+let scanStream = null, scanTimer = null, scanBusy = false, scanHold = false, hitNow = null;
+const strip = document.createElement("canvas");
+
+/* ---- which card is "83/185"? ---- */
+const numOf = c => /^\d+$/.test(c.label) ? parseInt(c.label, 10) : null;
+
+let RUNS = null;
+function runs(){
+  if (RUNS) return RUNS;
+  RUNS = {};
+  SETS.forEach((s, i) => { if (!s.hidden) (RUNS[s.printed] = RUNS[s.printed] || []).push(i); });
+  return RUNS;
+}
+function cardIn(i, want){
+  const s = SETS[i];
+  for (let k = 0; k < s.list.length; k++) if (numOf(s.list[k]) === want) return s.list[k];
+  return null;
+}
+function byLabel(lab){
+  const out = [];
+  SETS.forEach((s, i) => {
+    if (s.hidden) return;
+    s.list.forEach(c => { if (c.label.toUpperCase() === lab) out.push({ i, c }); });
+  });
+  return out;
+}
+function lookup(text, pin){
+  const t = String(text).toUpperCase().replace(/[^0-9A-Z/]+/g, " ");
+  let m, hit;
+
+  m = t.match(/\b(TG|GG)\s?(\d{1,2})/);                       /* trainer / galarian gallery */
+  if (m && (hit = byLabel(m[1] + m[2].padStart(2, "0"))).length) return hit;
+
+  m = t.match(/\bSWSH\s?0*(\d{1,3})/);                        /* Sword & Shield promos */
+  if (m && (hit = byLabel("SWSH" + m[1].padStart(3, "0"))).length) return hit;
+
+  m = t.match(/(\d{1,3})\s?\/\s?(\d{1,3})/);                  /* the everyday case */
+  if (m){
+    const n = parseInt(m[1], 10), run = parseInt(m[2], 10);
+    let ids = runs()[run] || [];
+    if (!ids.length) ids = SETS.map((s, i) => i).filter(i => !SETS[i].hidden && SETS[i].total === run);
+    const out = [];
+    ids.forEach(i => { const c = cardIn(i, n); if (c) out.push({ i, c }); });
+    if (out.length) return out;
+  }
+
+  if (pin !== ""){                                            /* a bare number, inside one set */
+    m = t.match(/\b(\d{1,3})\b/);
+    if (m){ const c = cardIn(+pin, parseInt(m[1], 10)); if (c) return [{ i: +pin, c }]; }
+  }
+  return [];
+}
+
+/* ---- the sheet ---- */
+function tip(text, warn){
+  const t = el("scanTip");
+  t.classList.toggle("warn", !!warn);
+  t.textContent = text;
+}
+function tipRead(raw){
+  const t = el("scanTip");
+  t.classList.remove("warn");
+  t.textContent = "reading ";
+  const b = document.createElement("b");
+  b.textContent = raw;
+  t.append(b);
+}
+const AIM = "Hold the card's number inside the box.";
+
+function loadOnce(src){
+  return new Promise((ok, no) => {
+    const s = document.createElement("script");
+    s.src = src; s.async = true;
+    s.onload = ok; s.onerror = () => no(new Error("script"));
+    document.head.append(s);
+  });
+}
+function ocrReady(){
+  if (ocr) return Promise.resolve(ocr);
+  if (ocrBoot) return ocrBoot;
+  ocrBoot = (async () => {
+    tip("Loading the reader — one download, then your browser keeps it.");
+    if (!window.Tesseract) await loadOnce(OCR_JS);
+    const w = await Tesseract.createWorker("eng", 1, OCR_AT);
+    /* sparse-text mode: the strip almost always carries a stray glyph or two
+       (the regulation mark, the illustrator line), and a single-line read
+       chokes on those while sparse mode finds the number among them */
+    await w.setParameters({ tessedit_pageseg_mode: "11", tessedit_char_whitelist: "0123456789/" });
+    ocr = w;
+    tip(AIM);
+    return w;
+  })();
+  return ocrBoot;
+}
+
+let camWhy = "No camera here — type the number instead.";
+async function startCam(){
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    camWhy = window.isSecureContext === false
+      ? "The camera only opens over https — type the number instead."
+      : "No camera here — type the number instead.";
+    return false;
+  }
+  try {
+    scanStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+      audio: false
+    });
+  } catch(e){
+    camWhy = e && e.name === "NotAllowedError"
+      ? "The camera was blocked — allow it for this site, or type the number."
+      : "No camera to use here — type the number instead.";
+    return false;
+  }
+  const v = el("scanVid");
+  v.srcObject = scanStream;
+  try { await v.play(); } catch(e){}
+  return true;
+}
+
+/* Cut the green box out of the live frame, at the camera's own resolution,
+   then grey it and stretch the contrast — small dark type on a textured,
+   glossy card reads far better that way. */
+function grab(){
+  const v = el("scanVid"), vw = v.videoWidth, vh = v.videoHeight;
+  if (!vw || !vh) return null;
+  const box = el("scanBox").getBoundingClientRect();
+  const st  = el("scanStage").getBoundingClientRect();
+  const k   = Math.max(st.width / vw, st.height / vh);        /* object-fit: cover */
+  const sx = (box.left - st.left - (st.width  - vw * k) / 2) / k;
+  const sy = (box.top  - st.top  - (st.height - vh * k) / 2) / k;
+  const sw = box.width / k, sh = box.height / k;
+  if (sw < 8 || sh < 4) return null;
+
+  const up = Math.min(5, Math.max(1, 1000 / sw));
+  strip.width  = Math.round(sw * up);
+  strip.height = Math.round(sh * up);
+  const g = strip.getContext("2d", { willReadFrequently: true });
+  g.imageSmoothingQuality = "high";
+  g.drawImage(v, sx, sy, sw, sh, 0, 0, strip.width, strip.height);
+
+  const im = g.getImageData(0, 0, strip.width, strip.height), d = im.data;
+  let lo = 255, hi = 0;
+  for (let i = 0; i < d.length; i += 4){
+    const y = (d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114) | 0;
+    d[i] = d[i + 1] = d[i + 2] = y;
+    if (y < lo) lo = y;
+    if (y > hi) hi = y;
+  }
+  const span = Math.max(24, hi - lo);
+  for (let i = 0; i < d.length; i += 4){
+    const y = Math.max(0, Math.min(255, Math.round((d[i] - lo) * 255 / span)));
+    d[i] = d[i + 1] = d[i + 2] = y;
+  }
+  g.putImageData(im, 0, 0);
+  return strip;
+}
+
+async function sniff(){
+  if (scanHold || scanBusy || el("scan").hidden || !scanStream) return;
+  const c = grab();
+  if (!c) return;
+  scanBusy = true;
+  el("scanBox").classList.add("busy");
+  try {
+    const w = await ocrReady();
+    const out = await w.recognize(c);
+    const raw = ((out.data && out.data.text) || "").replace(/\s+/g, " ").trim();
+    const hits = lookup(raw, el("scanSet").value);
+    if (hits.length) land(hits, raw);
+    else if (raw) tipRead(raw);
+  } catch(e){
+    tip("The reader will not start here — type the number instead.", true);
+    clearInterval(scanTimer); scanTimer = null;
+  }
+  scanBusy = false;
+  el("scanBox").classList.remove("busy");
+}
+
+function land(hits, raw){
+  scanHold = true;
+  try { if (navigator.vibrate) navigator.vibrate(55); } catch(e){}
+  try {
+    const sh = el("scanShot");
+    sh.src = strip.toDataURL("image/png");
+    sh.hidden = false;
+  } catch(e){}
+  tipRead(raw || "");
+  if (hits.length === 1) showHit(hits[0]); else showPicks(hits);
+  const body = el("scan").querySelector(".body");
+  if (body) body.scrollTop = 0;
+}
+
+function showPicks(hits){
+  const box = el("scanHit");
+  box.innerHTML = "";
+  const d = document.createElement("div");
+  d.className = "pick";
+  const lead = document.createElement("p");
+  lead.className = "lead";
+  lead.textContent = "More than one set runs that far — which one is it?";
+  d.append(lead);
+  hits.forEach(h => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.innerHTML = "<span></span><em></em>";
+    b.querySelector("span").textContent = SETS[h.i].tab + " · " + h.c.name;
+    b.querySelector("em").textContent = shown(h.c.label) + "/" + SETS[h.i].printed + " · " + h.c.rarity;
+    b.addEventListener("click", () => showHit(h));
+    d.append(b);
+  });
+  box.append(d);
+}
+
+function addBtn(h, rh){
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "add" + (rh ? " rh" : "");
+  b.dataset.rh = rh ? "1" : "";
+  b.innerHTML = CHECK + "<span>" + (rh ? "Reverse holo" : "Normal") + "</span>";
+  b.addEventListener("click", () => {
+    const s = SETS[h.i];
+    const m = owned[s.key] = owned[s.key] || {};
+    const key = slotKey(h.c.n, rh);
+    if (m[key]) delete m[key]; else m[key] = true;
+    repaint();
+    save();
+    paintHave();
+    note(h, rh, !!m[key]);
+  });
+  return b;
+}
+
+function showHit(h){
+  hitNow = h;
+  const s = SETS[h.i], c = h.c, box = el("scanHit");
+  box.innerHTML = "";
+  const w = document.createElement("div");
+  w.className = "hit";
+  w.innerHTML = '<img alt=""><div class="meta"><div class="nm"></div><div class="sub"></div>'
+              + '<div class="have"></div><div class="btns"></div></div>';
+  const im = w.querySelector("img");
+  const src = art(s, c, false);
+  if (src) im.src = src; else im.remove();
+  w.querySelector(".nm").textContent = c.name;
+  const pr = priceOf(s, c);
+  w.querySelector(".sub").textContent =
+    s.tab + " · " + shown(c.label) + " · " + c.rarity + (pr && pr[0] != null ? " · " + EUR.format(pr[0]) : "");
+
+  const btns = w.querySelector(".btns");
+  btns.append(addBtn(h, false));
+  if (c.rh) btns.append(addBtn(h, true));
+  if (scanStream){
+    const next = document.createElement("button");
+    next.type = "button"; next.className = "add ghost"; next.textContent = "Next card";
+    next.addEventListener("click", resume);
+    btns.append(next);
+  }
+  const open = document.createElement("button");
+  open.type = "button"; open.className = "add ghost"; open.textContent = "Open in the set";
+  open.addEventListener("click", () => { closeScan(); openSet(h.i); jumpTo(c); });
+  btns.append(open);
+
+  box.append(w);
+  paintHave();
+}
+
+function paintHave(){
+  if (!hitNow) return;
+  const s = SETS[hitNow.i], c = hitNow.c, m = owned[s.key] || {};
+  const n = !!m[slotKey(c.n, false)], r = !!m[slotKey(c.n, true)];
+  const line = el("scanHit").querySelector(".have");
+  if (line){
+    const got = [];
+    if (n) got.push("normal");
+    if (c.rh && r) got.push("reverse holo");
+    line.classList.toggle("yes", got.length > 0);
+    line.textContent = got.length ? "Already in your dex — " + got.join(" + ") : "Not in your dex yet.";
+  }
+  el("scanHit").querySelectorAll(".add[data-rh]").forEach(b => b.classList.toggle("on", b.dataset.rh ? r : n));
+}
+
+function note(h, rh, on){
+  const row = document.createElement("span");
+  if (on) row.className = "new";
+  const b = document.createElement("b");
+  b.textContent = (on ? "+ " : "− ") + SETS[h.i].tab + " " + shown(h.c.label) + " "
+                + h.c.name + (rh ? " ↻" : "");
+  row.append(b);
+  const log = el("scanLog");
+  log.prepend(row);
+  while (log.children.length > 14) log.lastChild.remove();
+}
+
+function jumpTo(c){
+  setTimeout(() => {
+    const row = el("list").querySelector('.card[data-n="' + c.n + '"]');
+    if (row) row.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, 80);
+}
+
+function resume(){
+  el("scanHit").innerHTML = "";
+  el("scanShot").hidden = true;
+  hitNow = null;
+  scanHold = false;
+  tip(AIM);
+}
+
+function byHand(){
+  const v = el("scanNum").value.trim();
+  if (!v) return;
+  const hits = lookup(v, el("scanSet").value);
+  if (!hits.length){
+    el("scanHit").innerHTML = "";
+    hitNow = null;
+    tip("No card carries that number.", true);
+    return;
+  }
+  scanHold = true;
+  el("scanShot").hidden = true;
+  tip("");
+  if (hits.length === 1) showHit(hits[0]); else showPicks(hits);
+}
+
+async function openScan(){
+  const sel = el("scanSet");
+  if (sel.options.length === 1){
+    SETS.forEach((s, i) => {
+      if (s.hidden) return;
+      const o = document.createElement("option");
+      o.value = String(i);
+      o.textContent = s.tab;
+      sel.append(o);
+    });
+  }
+  sel.value = active === null ? "" : String(active);
+  el("scan").hidden = false;
+  el("scanHit").innerHTML = "";
+  el("scanShot").hidden = true;
+  hitNow = null;
+  scanHold = false;
+  document.body.style.overflow = "hidden";
+
+  const live = await startCam();
+  if (!live){
+    el("scanStage").classList.add("off");
+    tip(camWhy, true);
+    el("scanNum").focus();
+    return;
+  }
+  tip(AIM);
+  ocrReady().catch(() => tip("The reader will not load here — type the number instead.", true));
+  clearInterval(scanTimer);
+  scanTimer = setInterval(sniff, 800);
+}
+
+function closeScan(){
+  clearInterval(scanTimer);
+  scanTimer = null;
+  if (scanStream){ scanStream.getTracks().forEach(t => t.stop()); scanStream = null; }
+  el("scanVid").srcObject = null;
+  el("scan").hidden = true;
+  el("scanStage").classList.remove("off");
+  el("scanShot").hidden = true;
+  document.body.style.overflow = "";
 }
 
 function cardNode(c){
@@ -1214,6 +1721,14 @@ applyArt(el("showArt").checked);
 el("showArt").addEventListener("change", () => { applyArt(el("showArt").checked); render(); });
 
 el("peek").addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
+
+el("scanOpen").addEventListener("click", openScan);
+el("scanOpen2").addEventListener("click", openScan);
+el("scanX").addEventListener("click", closeScan);
+el("scanGo").addEventListener("click", byHand);
+el("scanNum").addEventListener("keydown", e => { if (e.key === "Enter") byHand(); });
+el("scanSet").addEventListener("change", () => { if (el("scanNum").value.trim()) byHand(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape" && !el("scan").hidden) closeScan(); });
 
 el("lensX").addEventListener("click", closeLens);
 el("lens").addEventListener("click", e => { if (e.target === el("lens") || e.target.tagName === "FIGURE") closeLens(); });
