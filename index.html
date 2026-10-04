@@ -168,7 +168,10 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid 
 .card.got{background:#0d1712;border-color:#1e4634;border-left-color:var(--jade)}
 .card.got:hover{background:#0f1c16}
 .card.got .name{color:#d8f5e8}
-.num{font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--dim);font-variant-numeric:tabular-nums;width:30px}
+/* The number column is as wide as the widest number in the set — three
+   digits in most of them, but "SWSH001" and "MEP 107" need the room, and a
+   fixed width put them straight through the price underneath. */
+.num{font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--dim);font-variant-numeric:tabular-nums;white-space:nowrap;width:max(30px,var(--numw,30px))}
 
 /* card thumbnails */
 .shot{
@@ -299,7 +302,7 @@ footer{margin-top:44px;padding-top:18px;border-top:1px solid var(--line-soft);di
 
   .grid{grid-template-columns:1fr;gap:7px}
   .card{gap:9px;padding:8px 9px 8px 11px}
-  .num{font-size:11px;width:27px}
+  .num{font-size:11px;width:max(27px,var(--numw,27px))}
   .name{font-size:14px}
   .rar{font-size:10px}
   .shot{width:38px;height:53px}
@@ -733,6 +736,9 @@ function openSet(i){
   el("peekT").textContent = "/" + s.master;
   el("ownedLab").textContent = s.rhCount ? "of the master set" : "collected";
   el("foot").textContent = "Card data: " + s.name;
+
+  const widest = s.list.reduce((m, c) => Math.max(m, shown(c.label).length), 3);
+  el("list").style.setProperty("--numw", widest + "ch");
 
   const sel = el("rarity");
   sel.textContent = "";
