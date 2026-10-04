@@ -269,6 +269,32 @@ body.noimg .card{grid-template-columns:auto 1fr auto}
 }
 .scan .frame .box.busy{border-color:var(--gold)}
 .scan .scanshot{position:absolute;right:9px;bottom:9px;width:118px;border-radius:5px;border:1px solid var(--line);opacity:.9}
+.scan .stage .freeze{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000;display:block}
+.scan .stage .freeze[hidden]{display:none}
+.scan .stage.photo .frame{display:none}
+.scan .stage.photo{cursor:crosshair;touch-action:none}
+.scan .stage .sel{position:absolute;border:2px solid var(--gold);border-radius:5px;box-shadow:0 0 0 2000px rgba(0,0,0,.42);pointer-events:none}
+.scan .stage .sel[hidden]{display:none}
+.scan .shutter{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:center;
+  padding:11px 16px;border-bottom:1px solid var(--line-soft);flex:0 0 auto;
+}
+.scan .snap{
+  display:inline-flex;align-items:center;gap:9px;border:1.5px solid var(--jade);border-radius:999px;
+  background:rgba(53,200,139,.1);color:var(--jade);font-family:inherit;font-size:13.5px;font-weight:500;
+  padding:9px 20px;cursor:pointer;transition:background .16s,opacity .16s;
+}
+.scan .snap:hover{background:rgba(53,200,139,.2)}
+.scan .snap:disabled{opacity:.45;cursor:default}
+.scan .snap svg{width:19px;height:19px}
+.scan .filebtn{
+  border:1px solid var(--line);border-radius:999px;background:var(--panel);color:var(--plume);
+  font-size:12.5px;padding:9px 16px;cursor:pointer;white-space:nowrap;
+}
+.scan .filebtn:hover{border-color:#3d4457}
+.scan .filebtn input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.scan .keepon{display:inline-flex;align-items:center;gap:7px;font-size:12px;color:var(--muted);cursor:pointer;white-space:nowrap}
+.scan .keepon input{accent-color:var(--jade);width:15px;height:15px}
 .scan .tip{
   margin:0;padding:10px 16px;font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.05em;
   color:var(--muted);text-align:center;border-bottom:1px solid var(--line-soft);min-height:37px;flex:0 0 auto;
@@ -536,9 +562,21 @@ footer{margin-top:44px;padding-top:18px;border-top:1px solid var(--line-soft);di
 
   <div class="stage" id="scanStage">
     <video id="scanVid" playsinline muted autoplay></video>
+    <img class="freeze" id="scanFreeze" alt="" hidden>
     <div class="frame"><span class="box" id="scanBox"></span></div>
+    <span class="sel" id="scanSel" hidden></span>
     <img class="scanshot" id="scanShot" alt="" hidden>
   </div>
+
+  <div class="shutter">
+    <button class="snap" id="scanSnap" type="button">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true">
+        <circle cx="10" cy="10" r="6.4"/><circle cx="10" cy="10" r="8.8" opacity=".45"/>
+      </svg>Take the photo</button>
+    <label class="filebtn" id="scanPickWrap">Photo or camera<input type="file" id="scanFile" accept="image/*"></label>
+    <label class="keepon"><input type="checkbox" id="scanAuto" checked> Keep looking</label>
+  </div>
+
   <p class="tip" id="scanTip">Hold the card&#39;s number inside the box.</p>
 
   <div class="body">
@@ -989,12 +1027,18 @@ function lookup(text, pin){
   m = t.match(/\bSWSH\s?0*(\d{1,3})/);                        /* Sword & Shield promos */
   if (m && (hit = byLabel("SWSH" + m[1].padStart(3, "0"))).length) return hit;
 
-  m = t.match(/(\d{1,3})\s?\/\s?(\d{1,3})/);                  /* the everyday case */
-  if (m){
-    const n = parseInt(m[1], 10), run = parseInt(m[2], 10);
+  /* the everyday case. No slack around the slash: the reader is held to
+     digits and a slash, so the real number comes out in one piece, and
+     allowing a gap is what turns "…0 83/ 009…" into a card that is not
+     there. Several numbers can survive one reading; try them in turn. */
+  const all = t.match(/\d{1,3}\/\d{1,3}/g) || [];
+  for (let k = 0; k < all.length; k++){
+    const pair = all[k].split("/");
+    const n = parseInt(pair[0], 10);
+    const out = [];
+    const run = parseInt(pair[1], 10);
     let ids = runs()[run] || [];
     if (!ids.length) ids = SETS.map((s, i) => i).filter(i => !SETS[i].hidden && SETS[i].total === run);
-    const out = [];
     ids.forEach(i => { const c = cardIn(i, n); if (c) out.push({ i, c }); });
     if (out.length) return out;
   }
@@ -1020,7 +1064,8 @@ function tipRead(raw){
   b.textContent = raw;
   t.append(b);
 }
-const AIM = "Hold the card's number inside the box.";
+const AIM = "Hold the card's number inside the box, or take the photo.";
+const TAPIT = "Tap the number in the photo to read just that bit.";
 
 function loadOnce(src){
   return new Promise((ok, no) => {
@@ -1073,28 +1118,77 @@ async function startCam(){
   return true;
 }
 
-/* Cut the green box out of the live frame, at the camera's own resolution,
-   then grey it and stretch the contrast — small dark type on a textured,
-   glossy card reads far better that way. */
-function grab(){
-  const v = el("scanVid"), vw = v.videoWidth, vh = v.videoHeight;
-  if (!vw || !vh) return null;
-  const box = el("scanBox").getBoundingClientRect();
-  const st  = el("scanStage").getBoundingClientRect();
-  const k   = Math.max(st.width / vw, st.height / vh);        /* object-fit: cover */
-  const sx = (box.left - st.left - (st.width  - vw * k) / 2) / k;
-  const sy = (box.top  - st.top  - (st.height - vh * k) / 2) / k;
-  const sw = box.width / k, sh = box.height / k;
-  if (sw < 8 || sh < 4) return null;
+/* Unsharp mask over the grey channel: the blur is two box passes, and what
+   the blur loses is added back. A photo of a card is nearly always a little
+   soft — the autofocus is working at the edge of its range — and the reader
+   fails on soft italic digits long before a person would. */
+function unsharp(d, w, h, r, amount){
+  const n = w * h, g = new Float32Array(n), t = new Float32Array(n), b = new Float32Array(n);
+  for (let i = 0; i < n; i++) g[i] = d[i * 4];
+  const win = r * 2 + 1;
+  for (let y = 0; y < h; y++){
+    const row = y * w;
+    let sum = 0;
+    for (let x = -r; x <= r; x++) sum += g[row + Math.min(w - 1, Math.max(0, x))];
+    for (let x = 0; x < w; x++){
+      t[row + x] = sum / win;
+      sum += g[row + Math.min(w - 1, x + r + 1)] - g[row + Math.min(w - 1, Math.max(0, x - r))];
+    }
+  }
+  for (let x = 0; x < w; x++){
+    let sum = 0;
+    for (let y = -r; y <= r; y++) sum += t[Math.min(h - 1, Math.max(0, y)) * w + x];
+    for (let y = 0; y < h; y++){
+      b[y * w + x] = sum / win;
+      sum += t[Math.min(h - 1, y + r + 1) * w + x] - t[Math.min(h - 1, Math.max(0, y - r)) * w + x];
+    }
+  }
+  for (let i = 0; i < n; i++){
+    const v = Math.max(0, Math.min(255, Math.round(g[i] + amount * (g[i] - b[i]))));
+    d[i * 4] = d[i * 4 + 1] = d[i * 4 + 2] = v;
+  }
+}
 
-  const up = Math.min(5, Math.max(1, 1000 / sw));
-  strip.width  = Math.round(sw * up);
-  strip.height = Math.round(sh * up);
-  const g = strip.getContext("2d", { willReadFrequently: true });
+/* Grey the strip and stretch whatever contrast it has to the full range —
+   that is what makes small dark type on a glossy, textured card legible. */
+/* Enlarging in one jump is where canvas filtering gives up: a 4x leap comes
+   out mushy and the reader makes nothing of it, while the same 4x taken as
+   doublings stays crisp. */
+let up1 = document.createElement("canvas"), up2 = document.createElement("canvas");
+function stepUp(src, sx, sy, sw, sh, tw, th){
+  let a = up1, b = up2;
+  let cw = Math.max(1, Math.round(sw)), ch = Math.max(1, Math.round(sh));
+  a.width = cw; a.height = ch;
+  const ga = a.getContext("2d");
+  ga.imageSmoothingQuality = "high";
+  ga.drawImage(src, sx, sy, sw, sh, 0, 0, cw, ch);
+  while (cw * 2 <= tw){
+    const nw = Math.min(tw, cw * 2), nh = Math.max(1, Math.min(th, ch * 2));
+    b.width = nw; b.height = nh;
+    const gb = b.getContext("2d");
+    gb.imageSmoothingQuality = "high";
+    gb.drawImage(a, 0, 0, cw, ch, 0, 0, nw, nh);
+    const sw2 = a; a = b; b = sw2;
+    cw = nw; ch = nh;
+  }
+  up1 = a; up2 = b;
+  return [a, cw, ch];
+}
+
+function paintStrip(cv, src, sx, sy, sw, sh, wide, invert, sharp){
+  const up = Math.min(6, Math.max(1, wide / sw));
+  cv.width  = Math.max(8, Math.round(sw * up));
+  cv.height = Math.max(4, Math.round(sh * up));
+  const g = cv.getContext("2d", { willReadFrequently: true });
   g.imageSmoothingQuality = "high";
-  g.drawImage(v, sx, sy, sw, sh, 0, 0, strip.width, strip.height);
+  if (up > 2){
+    const st = stepUp(src, sx, sy, sw, sh, cv.width, cv.height);
+    g.drawImage(st[0], 0, 0, st[1], st[2], 0, 0, cv.width, cv.height);
+  } else {
+    g.drawImage(src, sx, sy, sw, sh, 0, 0, cv.width, cv.height);
+  }
 
-  const im = g.getImageData(0, 0, strip.width, strip.height), d = im.data;
+  const im = g.getImageData(0, 0, cv.width, cv.height), d = im.data;
   let lo = 255, hi = 0;
   for (let i = 0; i < d.length; i += 4){
     const y = (d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114) | 0;
@@ -1104,26 +1198,95 @@ function grab(){
   }
   const span = Math.max(24, hi - lo);
   for (let i = 0; i < d.length; i += 4){
-    const y = Math.max(0, Math.min(255, Math.round((d[i] - lo) * 255 / span)));
+    let y = Math.max(0, Math.min(255, Math.round((d[i] - lo) * 255 / span)));
+    if (invert) y = 255 - y;
     d[i] = d[i + 1] = d[i + 2] = y;
   }
+  if (sharp) unsharp(d, cv.width, cv.height, Math.max(2, Math.round(cv.width / 190)), sharp);
   g.putImageData(im, 0, 0);
-  return strip;
+  return cv;
+}
+
+/* where the green box sits on the camera's own frame */
+function boxOnFrame(){
+  const v = el("scanVid"), vw = v.videoWidth, vh = v.videoHeight;
+  if (!vw || !vh) return null;
+  const box = el("scanBox").getBoundingClientRect();
+  const st  = el("scanStage").getBoundingClientRect();
+  const k   = Math.max(st.width / vw, st.height / vh);        /* object-fit: cover */
+  const r = [
+    (box.left - st.left - (st.width  - vw * k) / 2) / k,
+    (box.top  - st.top  - (st.height - vh * k) / 2) / k,
+    box.width / k,
+    box.height / k
+  ];
+  return (r[2] < 8 || r[3] < 4) ? null : r;
+}
+
+function grab(){
+  const r = boxOnFrame();
+  return r ? paintStrip(strip, el("scanVid"), r[0], r[1], r[2], r[3], 1000, false) : null;
+}
+
+/* One quick look, for the live loop. */
+async function readFast(){
+  const c = grab();
+  if (!c) return null;
+  const w = await ocrReady();
+  const out = await w.recognize(c);
+  return ((out.data && out.data.text) || "").replace(/\s+/g, " ").trim();
+}
+
+/* A still can afford more: three passes per region, in the order that wins
+   most often, stopping the moment a reading turns into a real card. */
+/* Four looks at the same patch, in the order that wins most often: plain,
+   sharpened (a photo of a card is nearly always a shade soft), then the same
+   two with the layout read as a block instead of scattered text. Scale is
+   worth varying too — the reader has a size it likes, and a close-up
+   overshoots it as easily as a wide shot undershoots. */
+const PASSES = [                 /* [page segmentation, width, invert, sharpen] */
+  ["11", 1200, false, 0],
+  ["11", 1000, false, 2.6],
+  ["6",  1200, false, 0],
+  ["6",  1000, false, 2.6]
+];
+async function readHard(src, regions, passes){
+  const w = await ocrReady();
+  const list = passes || PASSES;
+  const todo = regions.length * list.length;
+  let seen = "", step = 0;
+  try {
+    for (let i = 0; i < regions.length; i++){
+      const r = regions[i];
+      for (let j = 0; j < list.length; j++){
+        tip("Reading the photo… " + (++step) + "/" + todo);
+        paintStrip(strip, src, r[0], r[1], r[2], r[3], list[j][1], list[j][2], list[j][3]);
+        await w.setParameters({ tessedit_pageseg_mode: list[j][0] });
+        const out = await w.recognize(strip);
+        const raw = ((out.data && out.data.text) || "").replace(/\s+/g, " ").trim();
+        if (raw && !seen) seen = raw;
+        const hits = lookup(raw, el("scanSet").value);
+        if (hits.length) return { hits, raw };
+      }
+    }
+  } finally {
+    await w.setParameters({ tessedit_pageseg_mode: "11" });
+  }
+  return { hits: [], raw: seen };
 }
 
 async function sniff(){
   if (scanHold || scanBusy || el("scan").hidden || !scanStream) return;
-  const c = grab();
-  if (!c) return;
+  if (!el("scanAuto").checked) return;
   scanBusy = true;
   el("scanBox").classList.add("busy");
   try {
-    const w = await ocrReady();
-    const out = await w.recognize(c);
-    const raw = ((out.data && out.data.text) || "").replace(/\s+/g, " ").trim();
-    const hits = lookup(raw, el("scanSet").value);
-    if (hits.length) land(hits, raw);
-    else if (raw) tipRead(raw);
+    const raw = await readFast();
+    if (raw !== null){
+      const hits = lookup(raw, el("scanSet").value);
+      if (hits.length) land(hits, raw);
+      else if (raw) tipRead(raw);
+    }
   } catch(e){
     tip("The reader will not start here — type the number instead.", true);
     clearInterval(scanTimer); scanTimer = null;
@@ -1132,18 +1295,148 @@ async function sniff(){
   el("scanBox").classList.remove("busy");
 }
 
+/* ---- the shutter: freeze this frame and work on it properly ---- */
+function freezeFrom(src, w, h){
+  const c = document.createElement("canvas");
+  c.width = w; c.height = h;
+  c.getContext("2d").drawImage(src, 0, 0, w, h);
+  try { el("scanFreeze").src = c.toDataURL("image/jpeg", 0.8); el("scanFreeze").hidden = false; } catch(e){}
+}
+
+async function snap(){
+  if (scanBusy || !scanStream) return;
+  const r = boxOnFrame();
+  if (!r){ tip("The camera is not ready yet.", true); return; }
+  const v = el("scanVid");
+  scanBusy = true;
+  scanHold = true;
+  el("scanStage").classList.remove("photo");
+  el("scanSel").hidden = true;
+  el("scanSnap").disabled = true;
+  el("scanBox").classList.add("busy");
+  freezeFrom(v, v.videoWidth, v.videoHeight);
+  tip("Reading the photo…");
+  try {
+    const inset = [r[0] + r[2] * 0.12, r[1] + r[3] * 0.08, r[2] * 0.76, r[3] * 0.84];
+    const got = await readHard(v, [r, inset]);
+    done(got, "Nothing readable there. " + TAPIT);
+  } catch(e){
+    tip("The reader will not start here — type the number instead.", true);
+  }
+  /* the frozen frame stays on screen, so it can be tapped to read a patch */
+  const fz = el("scanFreeze");
+  const arm = () => { photo = fz; el("scanStage").classList.add("photo"); };
+  if (fz.complete && fz.naturalWidth) arm(); else fz.addEventListener("load", arm, { once: true });
+  el("scanSnap").disabled = false;
+  el("scanBox").classList.remove("busy");
+  scanBusy = false;
+}
+
+/* ---- a photo from the camera roll, or straight from the camera app ---- */
+function fromFile(file){
+  if (!file) return;
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = async () => {
+    scanHold = true;
+    scanBusy = true;
+    el("scanStage").classList.add("photo");
+    el("scanFreeze").src = url;
+    el("scanFreeze").hidden = false;
+    el("scanSnap").disabled = true;
+    tip("Reading the photo…");
+    try {
+      const W = img.naturalWidth, H = img.naturalHeight;
+      photo = img;
+      const got = await readHard(img, [[0, 0, W, H]]);
+      done(got, "No number found in that photo. " + TAPIT);
+    } catch(e){
+      tip("The reader will not start here — type the number instead.", true);
+    }
+    el("scanSnap").disabled = !scanStream;
+    scanBusy = false;
+    el("scanFile").value = "";
+  };
+  img.onerror = () => { tip("That file is not a picture I can open.", true); el("scanFile").value = ""; };
+  img.src = url;
+}
+
+/* Tap the number in a frozen photo (or drag a box round it) and only that
+   patch is read — a tight frame is what the reader does best with. */
+let photo = null, selAt = null;
+function stageRect(){ return el("scanStage").getBoundingClientRect(); }
+function photoFit(){
+  if (!photo) return null;
+  const st = stageRect();
+  const k = Math.min(st.width / photo.naturalWidth, st.height / photo.naturalHeight);
+  return { k, ox: (st.width - photo.naturalWidth * k) / 2, oy: (st.height - photo.naturalHeight * k) / 2, st };
+}
+function drawSel(x, y, w, h){
+  const s = el("scanSel");
+  s.style.left = x + "px"; s.style.top = y + "px";
+  s.style.width = w + "px"; s.style.height = h + "px";
+  s.hidden = false;
+}
+function selDown(e){
+  if (!el("scanStage").classList.contains("photo") || !photo || scanBusy) return;
+  const st = stageRect();
+  selAt = [e.clientX - st.left, e.clientY - st.top];
+  drawSel(selAt[0], selAt[1], 0, 0);
+  try { el("scanStage").setPointerCapture(e.pointerId); } catch(err){}
+  e.preventDefault();
+}
+function selMove(e){
+  if (!selAt) return;
+  const st = stageRect();
+  const x = e.clientX - st.left, y = e.clientY - st.top;
+  drawSel(Math.min(x, selAt[0]), Math.min(y, selAt[1]), Math.abs(x - selAt[0]), Math.abs(y - selAt[1]));
+}
+async function selUp(e){
+  if (!selAt) return;
+  const st = stageRect(), fit = photoFit();
+  const x = e.clientX - st.left, y = e.clientY - st.top;
+  let L = Math.min(x, selAt[0]), T = Math.min(y, selAt[1]);
+  let W = Math.abs(x - selAt[0]), H = Math.abs(y - selAt[1]);
+  selAt = null;
+  if (W < 14 || H < 10){                       /* a tap: a box around that spot */
+    W = st.width * 0.54; H = st.height * 0.22;
+    L = x - W / 2; T = y - H / 2;
+  }
+  drawSel(L, T, W, H);
+  if (!fit || scanBusy) return;
+  scanBusy = true;
+  el("scanSnap").disabled = true;
+  try {
+    const got = await readHard(photo, [[
+      (L - fit.ox) / fit.k, (T - fit.oy) / fit.k, W / fit.k, H / fit.k
+    ]]);
+    done(got, "Still nothing — drag a box round the number instead of tapping it.");
+  } catch(err){
+    tip("The reader will not start here — type the number instead.", true);
+  }
+  el("scanSnap").disabled = !scanStream;
+  scanBusy = false;
+}
+
+function done(got, missText){
+  try { el("scanShot").src = strip.toDataURL("image/png"); el("scanShot").hidden = false; } catch(e){}
+  if (got.hits.length){
+    try { if (navigator.vibrate) navigator.vibrate(55); } catch(e){}
+    tipRead(got.raw || "");
+    if (got.hits.length === 1) showHit(got.hits[0]); else showPicks(got.hits);
+    const body = el("scan").querySelector(".body");
+    if (body) body.scrollTop = 0;
+    if (photo) el("scanTip").title = TAPIT;
+  } else {
+    el("scanHit").innerHTML = "";
+    hitNow = null;
+    tip(got.raw ? missText + "  (read: " + got.raw + ")" : missText, true);
+  }
+}
+
 function land(hits, raw){
   scanHold = true;
-  try { if (navigator.vibrate) navigator.vibrate(55); } catch(e){}
-  try {
-    const sh = el("scanShot");
-    sh.src = strip.toDataURL("image/png");
-    sh.hidden = false;
-  } catch(e){}
-  tipRead(raw || "");
-  if (hits.length === 1) showHit(hits[0]); else showPicks(hits);
-  const body = el("scan").querySelector(".body");
-  if (body) body.scrollTop = 0;
+  done({ hits: hits, raw: raw }, "");
 }
 
 function showPicks(hits){
@@ -1257,9 +1550,14 @@ function jumpTo(c){
 function resume(){
   el("scanHit").innerHTML = "";
   el("scanShot").hidden = true;
+  el("scanFreeze").hidden = true;
+  el("scanFreeze").removeAttribute("src");
+  el("scanStage").classList.remove("photo");
+  el("scanSel").hidden = true;
+  photo = null;
   hitNow = null;
   scanHold = false;
-  tip(AIM);
+  tip(scanStream ? AIM : camWhy, !scanStream);
 }
 
 function byHand(){
@@ -1274,6 +1572,9 @@ function byHand(){
   }
   scanHold = true;
   el("scanShot").hidden = true;
+  el("scanFreeze").hidden = true;
+  el("scanStage").classList.remove("photo");
+  el("scanSel").hidden = true;
   tip("");
   if (hits.length === 1) showHit(hits[0]); else showPicks(hits);
 }
@@ -1293,6 +1594,12 @@ async function openScan(){
   el("scan").hidden = false;
   el("scanHit").innerHTML = "";
   el("scanShot").hidden = true;
+  el("scanFreeze").hidden = true;
+  el("scanFreeze").removeAttribute("src");
+  el("scanStage").classList.remove("photo");
+  el("scanSel").hidden = true;
+  photo = null;
+  el("scanSnap").disabled = true;
   hitNow = null;
   scanHold = false;
   document.body.style.overflow = "hidden";
@@ -1304,6 +1611,7 @@ async function openScan(){
     el("scanNum").focus();
     return;
   }
+  el("scanSnap").disabled = false;
   tip(AIM);
   ocrReady().catch(() => tip("The reader will not load here — type the number instead.", true));
   clearInterval(scanTimer);
@@ -1317,7 +1625,12 @@ function closeScan(){
   el("scanVid").srcObject = null;
   el("scan").hidden = true;
   el("scanStage").classList.remove("off");
+  el("scanStage").classList.remove("photo");
+  el("scanSel").hidden = true;
+  photo = null;
   el("scanShot").hidden = true;
+  el("scanFreeze").hidden = true;
+  el("scanFreeze").removeAttribute("src");
   document.body.style.overflow = "";
 }
 
@@ -1725,6 +2038,16 @@ el("peek").addEventListener("click", () => window.scrollTo({ top: 0, behavior: "
 el("scanOpen").addEventListener("click", openScan);
 el("scanOpen2").addEventListener("click", openScan);
 el("scanX").addEventListener("click", closeScan);
+el("scanSnap").addEventListener("click", snap);
+el("scanStage").addEventListener("pointerdown", selDown);
+el("scanStage").addEventListener("pointermove", selMove);
+el("scanStage").addEventListener("pointerup", selUp);
+el("scanStage").addEventListener("pointercancel", () => { selAt = null; });
+el("scanFile").addEventListener("change", e => fromFile(e.target.files && e.target.files[0]));
+el("scanAuto").addEventListener("change", () => {
+  if (el("scanAuto").checked && scanStream && !scanHold) tip(AIM);
+  else if (!el("scanAuto").checked && scanStream) tip("Line the number up, then take the photo.");
+});
 el("scanGo").addEventListener("click", byHand);
 el("scanNum").addEventListener("keydown", e => { if (e.key === "Enter") byHand(); });
 el("scanSet").addEventListener("change", () => { if (el("scanNum").value.trim()) byHand(); });
