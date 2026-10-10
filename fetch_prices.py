@@ -16,7 +16,8 @@ from concurrent.futures import ThreadPoolExecutor
 
 API = 'https://api.tcgdex.net/v2/en/cards/'
 GALLERY = {'swsh9tg': 'swsh9tg', 'swsh10tg': 'swsh10tg', 'swsh11tg': 'swsh11tg',
-           'swsh12tg': 'swsh12tg', 'swsh12pt5gg': 'swsh12.5gg', 'svp': 'svp'}
+           'swsh12tg': 'swsh12tg', 'swsh12pt5gg': 'swsh12.5gg', 'svp': 'svp',
+           'swsh45sv': 'swsh4.5sv'}
 WORKERS = 8
 
 
