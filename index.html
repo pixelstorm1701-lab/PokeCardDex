@@ -509,6 +509,16 @@ const slotKey = (n, rh) => rh ? n + "r" : String(n);
 let PRICES = null;
 const EUR = new Intl.NumberFormat("nl-NL", { style: "currency", currency: "EUR" });
 
+/* Wat er onder de setnaam over de prijzen staat. Een set die de leiding nog
+   niet kent kan met de hand gevuld zijn uit Cardmarkets eigen prijsgids; die
+   heeft een eigen datum en ververst niet mee, dus dat hoort er dan bij te
+   staan in plaats van de datum van de dagelijkse ronde. */
+function priceNote(s){
+  if (!PRICES || !PRICES.sets[s.key]) return "";
+  const m = PRICES.manual && PRICES.manual[s.key];
+  return m ? "prices " + m.date + " \u00b7 " + (m.tag || "handmatig") : "prices " + PRICES.updated;
+}
+
 function priceOf(s, c){
   const m = PRICES && PRICES.sets[s.key];
   return (m && m[c.ix]) || null;
@@ -730,7 +740,7 @@ function openSet(i){
     .concat(s.rhCount ? [s.rhCount + " reverse holos", s.master + " in a master set"] : [])
     .concat(s.printed === s.total || !s.rhCount ? [] : [])
     .concat(["released " + s.released])
-    .concat(PRICES && PRICES.sets[s.key] ? ["prices " + PRICES.updated] : [])
+    .concat(priceNote(s) ? [priceNote(s)] : [])
     .forEach(t => { const x = document.createElement("span"); x.textContent = t; sub.append(x); });
   el("ownedT").textContent = "/" + s.master;
   el("peekT").textContent = "/" + s.master;

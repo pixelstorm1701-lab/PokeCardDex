@@ -15,6 +15,7 @@ import json, os, re, sys, time, urllib.error, urllib.request
 from concurrent.futures import ThreadPoolExecutor
 
 API = 'https://api.tcgdex.net/v2/en/cards/'
+GUIDE = 'https://downloads.s3.cardmarket.com/productCatalog/priceGuide/price_guide_6.json'
 GALLERY = {'swsh9tg': 'swsh9tg', 'swsh10tg': 'swsh10tg', 'swsh11tg': 'swsh11tg',
            'swsh12tg': 'swsh12tg', 'swsh12pt5gg': 'swsh12.5gg', 'svp': 'svp',
            'swsh45sv': 'swsh4.5sv'}
@@ -110,11 +111,83 @@ def main():
             out.setdefault(key, {})[str(ix)] = e
     priced = sum(len(v) for v in out.values())
 
+    # A set no relay carries yet is filled straight from Cardmarket's own
+    # daily price guide. They publish it as one file per game - Pokémon is 6 -
+    # and it is keyed on idProduct, so cardmarket-ids.json holds which product
+    # belongs to which slot. Gaps only: the moment a relay starts answering for
+    # a card, that figure wins and the guide is ignored for it. If the download
+    # fails, prices-manual.json is the fallback so a set never silently empties.
+    here = os.path.dirname(page)
+    manual = {}
+
+    def vul(rows, key, datum, tag):
+        mine = out.setdefault(key, {})
+        used = 0
+        for ix, e in rows.items():
+            if ix not in mine:
+                mine[ix] = e
+                used += 1
+        if used:
+            manual[key] = {'n': used, 'date': datum, 'tag': tag}
+        return used
+
+    kaart = {}
+    kp = os.path.join(here, 'cardmarket-ids.json')
+    if os.path.exists(kp):
+        try:
+            kaart = json.load(open(kp)).get('sets', {})
+        except Exception as e:
+            print('cardmarket-ids.json could not be read:', e, flush=True)
+
+    gelukt = set()
+    if kaart:
+        try:
+            req = urllib.request.Request(GUIDE, headers={'User-Agent': 'pokecard-dex'})
+            with urllib.request.urlopen(req, timeout=180) as r:
+                gids = json.load(r)
+            prijs = {g['idProduct']: g for g in gids.get('priceGuides', [])}
+            datum = (gids.get('createdAt') or '')[:10]
+            print(f'Cardmarket price guide: {len(prijs)} rows, {datum}', flush=True)
+            for key, slots in kaart.items():
+                rows = {}
+                for ix, idp in slots.items():
+                    g = prijs.get(int(idp))
+                    if not g:
+                        continue
+                    e = [g.get('trend'), g.get('trend-holo')]
+                    e = [round(v, 2) if isinstance(v, (int, float)) and v else None for v in e]
+                    while e and e[-1] is None:
+                        e.pop()
+                    if e and e[0] is not None:
+                        rows[str(ix)] = e
+                if rows and vul(rows, key, datum, 'Cardmarket'):
+                    gelukt.add(key)
+        except Exception as e:
+            print('Cardmarket price guide unreachable:', e, flush=True)
+
+    mp = os.path.join(here, 'prices-manual.json')
+    if os.path.exists(mp):
+        try:
+            hand = json.load(open(mp))
+            for key, rows in hand.get('sets', {}).items():
+                if key not in gelukt:
+                    vul(rows, key, hand.get('updated', ''), 'handmatig')
+        except Exception as e:
+            print('prices-manual.json could not be read:', e, flush=True)
+
+    if manual:
+        print('filled outside the relay: '
+              + ', '.join(f'{k} {v["n"]} ({v["tag"]})' for k, v in manual.items()), flush=True)
+
+    priced = sum(len(v) for v in out.values())
+
     # never trade a good file for a bad run
     if os.path.exists(out_path):
         try:
-            had = sum(len(v) for v in json.load(open(out_path))['sets'].values())
-            if priced < had * 0.8:
+            was = json.load(open(out_path))
+            had = sum(len(v) for v in was['sets'].values())
+            had -= sum(m.get('n', 0) for m in (was.get('manual') or {}).values())
+            if priced - sum(m['n'] for m in manual.values()) < had * 0.8:
                 sys.exit(f'only {priced} prices against {had} before - leaving the file alone')
         except Exception:
             pass
@@ -122,7 +195,8 @@ def main():
         sys.exit(f'only {priced} prices came back - not writing the file')
 
     json.dump({'updated': stamp[:10], 'cur': 'EUR',
-               'src': "Cardmarket price guide via TCGdex", 'sets': out},
+               'src': "Cardmarket price guide via TCGdex",
+               'manual': manual, 'sets': out},
               open(out_path, 'w'), separators=(',', ':'))
     print(f'wrote {out_path}: {priced} prices in {len(out)} sets, '
           f'{round(os.path.getsize(out_path)/1024)} KB, dated {stamp[:10]}', flush=True)
