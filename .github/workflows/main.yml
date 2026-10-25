@@ -1,18 +1,44 @@
+# .github/workflows/main.yml
 name: Deploy to Firebase Hosting
 
 on:
   push:
     branches: [main]
-projectId: 219256527477
+  # De prijzenjob duwt zijn commit met de automatische GITHUB_TOKEN, en GitHub
+  # start bij zo'n push expres geen andere workflow. Zonder deze tweede
+  # aanleiding gaat de deploy dus nooit af voor de dagelijkse prijzen - precies
+  # het probleem waarvoor we Firebase wilden laten meelopen.
+  workflow_run:
+    workflows: ["Refresh Cardmarket prices"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
+concurrency:
+  group: firebase-hosting
+  cancel-in-progress: true
 
 jobs:
   deploy:
+    # na de prijzenjob alleen deployen als die ook geslaagd is
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # bij workflow_run pakt checkout anders de stand van vóór de
+          # prijzen-commit, en deploy je het bestand dat je net verving
+          ref: main
+
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           channelId: live
-          projectId: 219256527477
+          # de project-ID, niet het projectnummer: de CLI zoekt hierop en
+          # 219256527477 levert een 403 op
+          projectId: pokecard-dex
