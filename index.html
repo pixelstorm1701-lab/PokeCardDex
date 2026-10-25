@@ -370,6 +370,7 @@ footer{margin-top:44px;padding-top:18px;border-top:1px solid var(--line-soft);di
         <option value="big">Biggest set</option>
         <option value="worth">Worth the most</option>
       </select>
+      <label class="toggle"><input type="checkbox" id="floor35" checked> Hide sets under 35%</label>
     </div>
 
     <div class="shelf" id="shelf"></div>
@@ -666,11 +667,23 @@ const SERIES = {};
         .forEach((v, i) => { SERIES[v] = i; });
 })();
 
+/* promoseries: SVP, SWSH en MEP Promos. Die hebben geen "volle" stand om
+   naartoe te werken, dus een percentagegrens zegt er niets over. */
+const isPromo = s => /-promos$/.test(s.key) || /\bpromos\b/i.test(s.tab);
+
 function buildShelf(){
   const shelf = el("shelf");
   shelf.textContent = "";
   const q = el("setq").value.trim().toLowerCase();
   let shown = SETS.filter(s => !s.hidden);
+  /* Een plank met dertig tegels waar nauwelijks iets in staat leest niet.
+     Sets onder de 35% gaan daarom standaard weg - behalve de promoseries,
+     die lopen van nature nooit vol en horen er altijd te staan. Zoeken gaat
+     er wel langs, anders is een set waar je net aan begint onvindbaar. */
+  const laag = el("floor35").checked && !q
+    ? shown.filter(s => !isPromo(s) && countOf(s) / (s.master || 1) < 0.35)
+    : [];
+  if (laag.length) shown = shown.filter(s => laag.indexOf(s) < 0);
   if (q) shown = shown.filter(s =>
     (s.tab + " " + s.name + " " + s.code + " " + s.serie).toLowerCase().includes(q));
   shown = shelfOrder(shown);
@@ -714,7 +727,8 @@ function buildShelf(){
   const tot = shelved.reduce((a, s) => a + s.master, 0);
   const worth = shelved.reduce((a, s) => a + (valueOf(s) || 0), 0);
   el("grandTotal").textContent = got + " of " + tot + " cards collected"
-    + (worth ? "  ·  " + EUR.format(worth) : "");
+    + (worth ? "  ·  " + EUR.format(worth) : "")
+    + (laag.length ? "  ·  " + laag.length + " sets under 35% hidden" : "");
 }
 
 /* ---------- set view ---------- */
@@ -1216,6 +1230,14 @@ try {
 el("setq").addEventListener("input", buildShelf);
 el("order").addEventListener("change", () => {
   try { localStorage.setItem(ORDER_LS, el("order").value); } catch(e){}
+  buildShelf();
+});
+
+/* de ondergrens van 35%, onthouden per browser */
+const FLOOR_LS = "dex-pokecard-floor35";
+try { if (localStorage.getItem(FLOOR_LS) === "0") el("floor35").checked = false; } catch(e){}
+el("floor35").addEventListener("change", () => {
+  try { localStorage.setItem(FLOOR_LS, el("floor35").checked ? "1" : "0"); } catch(e){}
   buildShelf();
 });
 
