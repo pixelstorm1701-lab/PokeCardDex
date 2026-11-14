@@ -114,28 +114,35 @@ def main():
     # A set no relay carries yet is filled straight from Cardmarket's own
     # daily price guide. They publish it as one file per game - Pokémon is 6 -
     # and it is keyed on idProduct, so cardmarket-ids.json holds which product
-    # belongs to which slot. Gaps only: the moment a relay starts answering for
-    # a card, that figure wins and the guide is ignored for it. If the download
+    # belongs to which slot. Gaps only, normally: the moment a relay starts
+    # answering for a card, that figure wins and the guide is ignored for it.
+    # The exception is the sets named in that file's "override" list. TCGdex
+    # hangs every rarity of a card on the base print's Cardmarket product, so a
+    # secret rare comes back at the price of the common it shares a name with -
+    # Delta Reign's gold Mega Rayquaza ex at 4 euro instead of 167. For those
+    # sets our own slot-to-product mapping wins over the relay. If the download
     # fails, prices-manual.json is the fallback so a set never silently empties.
     here = os.path.dirname(page)
     manual = {}
 
-    def vul(rows, key, datum, tag):
+    def vul(rows, key, datum, tag, over=False):
         mine = out.setdefault(key, {})
         used = 0
         for ix, e in rows.items():
-            if ix not in mine:
+            if over or ix not in mine:
                 mine[ix] = e
                 used += 1
         if used:
             manual[key] = {'n': used, 'date': datum, 'tag': tag}
         return used
 
-    kaart = {}
+    kaart, override = {}, set()
     kp = os.path.join(here, 'cardmarket-ids.json')
     if os.path.exists(kp):
         try:
-            kaart = json.load(open(kp)).get('sets', {})
+            _ids = json.load(open(kp))
+            kaart = _ids.get('sets', {})
+            override = set(_ids.get('override', []))
         except Exception as e:
             print('cardmarket-ids.json could not be read:', e, flush=True)
 
@@ -160,7 +167,7 @@ def main():
                         e.pop()
                     if e and e[0] is not None:
                         rows[str(ix)] = e
-                if rows and vul(rows, key, datum, 'Cardmarket'):
+                if rows and vul(rows, key, datum, 'Cardmarket', key in override):
                     gelukt.add(key)
         except Exception as e:
             print('Cardmarket price guide unreachable:', e, flush=True)

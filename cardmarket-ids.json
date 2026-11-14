@@ -1,5 +1,8 @@
 {
  "note": "dex-vakje -> Cardmarket idProduct, voor sets die geen enkele relay nog kent",
+ "override": [
+  "delta-reign"
+ ],
  "sets": {
   "30th-celebration": {
    "1": 907607,
